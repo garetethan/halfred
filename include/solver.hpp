@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <fstream>
@@ -16,6 +17,7 @@ namespace project {
 	class ScrabbleSolver {
 		public:
 		constexpr static std::size_t letter_space_count = 26;
+		constexpr static unsigned int letter_offset = 97;
 		constexpr static char empty = '_';
 		constexpr static char wild = '*';
 
@@ -30,7 +32,10 @@ namespace project {
 			std::ifstream valid_words_file = defensively_open(valid_words_path);
 			std::string word;
 			while (valid_words_file >> word) {
-				valid_words_.push_back(word);
+				word = clean_word(word);
+				if (word.size() > 0) {
+					valid_words_.push_back(word);
+				}
 			}
 		}
 
@@ -40,6 +45,7 @@ namespace project {
 			for (char ch : available_letters) {
 				++letter_avail_counts.at(letter_to_index(ch));
 			}
+
 			std::vector<std::string::iterator> row_letters{};
 			for (std::string::iterator it = board_row.begin(); it < board_row.end(); ++it) {
 				if (*it != empty) {
@@ -118,9 +124,22 @@ namespace project {
 		}
 
 		static std::size_t letter_to_index(char le);
+
+		static std::string clean_word(std::string word);
 	};
 
 	std::size_t ScrabbleSolver::letter_to_index(char le) {
-		return static_cast<std::size_t>(le) - 97;
+		return static_cast<std::size_t>(le) - ScrabbleSolver::letter_offset;
+	}
+
+	std::string ScrabbleSolver::clean_word(std::string word) {
+		for (std::string::iterator it = word.begin(); it < word.end(); ++it) {
+			*it = std::tolower(static_cast<unsigned char>(*it));
+			// letter_to_index assumes the char is lowercase ASCII, so underflow may occur here
+			if (ScrabbleSolver::letter_to_index(*it) >= ScrabbleSolver::letter_space_count) {
+				return {""};
+			}
+		}
+		return word;
 	}
 }
