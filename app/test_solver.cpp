@@ -15,5 +15,7 @@ int main(int argc, char* argv[]) {
 	std::cin >> available_letters;
 	std::cout << "Board: ";
 	std::cin >> board_row;
-	std::cout << solver.first_match(available_letters, board_row) << std::endl;
+	std::pair<std::string, int> best_move = solver.first_match(available_letters, board_row);
+	std::cout << best_move.first << std::endl;
+	std::cout << best_move.second << " points" << std::endl;
 }

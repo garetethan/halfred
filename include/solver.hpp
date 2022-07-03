@@ -34,11 +34,11 @@ namespace project {
 			}
 		}
 
-		std::string first_match(std::string available_letters, std::string board_row) {
+		std::pair<std::string, int> first_match(std::string available_letters, std::string board_row) {
 			std::array<unsigned int, letter_space_count> letter_avail_counts;
 			letter_avail_counts.fill(0);
 			for (char ch : available_letters) {
-				++letter_avail_counts[letter_to_index(ch)];
+				++letter_avail_counts.at(letter_to_index(ch));
 			}
 			std::vector<std::string::iterator> row_letters{};
 			for (std::string::iterator it = board_row.begin(); it < board_row.end(); ++it) {
@@ -46,6 +46,9 @@ namespace project {
 					row_letters.push_back(it);
 				}
 			}
+
+			std::string best_play{"no matches found"};
+			int max_score = -1;
 			for (std::string word : valid_words_) {
 				if (word.size() > board_row.size()) {
 					continue;
@@ -56,14 +59,19 @@ namespace project {
 						std::string::iterator word_start = letter - pos;
 						std::string::iterator row_prev = word_start - 1;
 						std::string::iterator row_next = word_start + word.size();
-						if ((row_prev < board_row.begin() || *row_prev == empty) && (row_next >= board_row.end() || *row_next == empty) && evaluate_play(letter_avail_counts, word_start, board_row.end(), word) >= 0) {
-							return board_row.replace(word_start - board_row.begin(), word.size(), word);
+						if ((row_prev < board_row.begin() || *row_prev == empty) && (row_next >= board_row.end() || *row_next == empty)) {
+							int score = evaluate_play(letter_avail_counts, word_start, board_row.end(), word);
+							if (score > max_score) {
+								best_play = board_row;
+								best_play.replace(word_start - board_row.begin(), word.size(), word);
+								max_score = score;
+							}
 						}
 						pos = word.find(*letter, pos + 1);
 					}
 				}
 			}
-			return {"no match found"};
+			return {best_play, max_score};
 		}
 
 		std::vector<std::string> valid_words() const noexcept {
@@ -80,16 +88,18 @@ namespace project {
 
 		int evaluate_play(std::array<unsigned int, letter_space_count> letter_avail_counts, std::string::const_iterator row_begin, std::string::const_iterator row_end, const std::string& word) {
 			int score = 0;
+			bool letters_used = false;
 			std::string::const_iterator row_it = row_begin;
 			for (std::string::const_iterator word_it = word.begin(); word_it < word.end(); ++word_it, ++row_it) {
 				std::size_t letter_as_index = letter_to_index(*word_it);
 				if (row_it < row_end) {
 					if (*row_it == *word_it) {
-						score += letter_scores_[letter_as_index];
+						score += letter_scores_.at(letter_as_index);
 					}
-					else if (*row_it == empty && letter_avail_counts[letter_as_index] > 0) {
-						--letter_avail_counts[letter_as_index];
-						score += letter_scores_[letter_as_index];
+					else if (*row_it == empty && letter_avail_counts.at(letter_as_index) > 0) {
+						letters_used = true;
+						--letter_avail_counts.at(letter_as_index);
+						score += letter_scores_.at(letter_as_index);
 					}
 					else {
 						return -1;
@@ -99,7 +109,12 @@ namespace project {
 					return -1;
 				}
 			}
-			return score;
+			if (letters_used) {
+				return score;
+			}
+			else {
+				return -1;
+			}
 		}
 
 		static std::size_t letter_to_index(char le);
