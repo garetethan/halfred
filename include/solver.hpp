@@ -78,7 +78,7 @@ namespace project {
 		std::vector<std::string> valid_words_;
 		std::array<int, letter_space_count> letter_scores_;
 
-		int evaluate_play(std::array<unsigned int, letter_space_count>& letter_avail_counts, std::string::const_iterator row_begin, std::string::const_iterator row_end, const std::string& word) {
+		int evaluate_play(std::array<unsigned int, letter_space_count> letter_avail_counts, std::string::const_iterator row_begin, std::string::const_iterator row_end, const std::string& word) {
 			int score = 0;
 			std::string::const_iterator row_it = row_begin;
 			for (std::string::const_iterator word_it = word.begin(); word_it < word.end(); ++word_it, ++row_it) {
