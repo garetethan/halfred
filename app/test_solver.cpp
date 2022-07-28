@@ -1,23 +1,48 @@
+#include <algorithm>
 #include <iostream>
+#include <string>
 
-#include <solver.hpp>
+// #include <scrabble_sleuth.hpp>
 
-using namespace project;
+// using namespace scrabble;
+
+void print_usage(std::ostream& out = std::cout) {
+	out << "Usage: ./scrabble_sleuth -l letter_scores.txt -w valid_words.txt [-n 16]" << std::endl;
+}
+
+std::string get_arg(const int argc, char** argv, const std::string name) {
+	char** iter = std::find(argv, argv + argc, name);
+	if (++iter < argv + argc) {
+		return {*iter};
+	}
+	// not found or found as last argument (and therefore no value was given)
+	else {
+		return {""};
+	}
+}
+
+bool get_flag(const int argc, char** argv, const std::string name) {
+	return std::find(argv, argv + argc, name) < argv + argc;
+}
 
 int main(int argc, char* argv[]) {
-	if (argc < 3) {
-		throw std::runtime_error{"Too few command line arguments.\nUsage: scrabble_solver letter_scores.txt valid_words.txt"};
+	std::string letter_scores_path = get_arg(argc, argv, "-l");
+	std::string valid_words_path = get_arg(argc, argv, "-w");
+	std::string board_dimension_str = get_arg(argc, argv, "-n");
+
+	try {
+		int board_dimension = std::stoi(board_dimension_str);
+		if (board_dimension < 1) {
+			print_usage();
+			return 1;
+		}
 	}
-	ScrabbleSolver solver{argv[1], argv[2]};
-	std::string available_letters{};
-	std::string board_row{};
-	std::cout << "Available letters: ";
-	std::cin >> available_letters;
-	std::cout << "Board: ";
-	std::cin >> board_row;
-	std::pair<std::string, int> best_move = solver.first_match(available_letters, board_row);
-	std::cout << best_move.first << std::endl;
-	if (best_move.second > 0) {
-		std::cout << "(" << best_move.second << " points)" << std::endl;
+	catch (...) {
+		print_usage();
+		return 1;
+	}
+	if (letter_scores_path.empty() || valid_words_path.empty()) {
+		print_usage();
+		return 1;
 	}
 }
