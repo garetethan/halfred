@@ -1,10 +1,14 @@
+/*
+* evaluate_play should really return a pair or in some other way indicate that a play is invalid, since letters can have negative scores, and while such a play would not usually be advantageous, the alternative is ending the game.
+*/
+
 #include <algorithm>
 #include <iostream>
 #include <string>
 
-// #include <scrabble_sleuth.hpp>
+#include <scrabble_sleuth.hpp>
 
-// using namespace scrabble;
+using namespace scrabble_sleuth;
 
 void print_usage(std::ostream& out = std::cout) {
 	out << "Usage: ./scrabble_sleuth -l letter_scores.txt -w valid_words.txt [-n 16]" << std::endl;
@@ -30,19 +34,27 @@ int main(int argc, char* argv[]) {
 	std::string valid_words_path = get_arg(argc, argv, "-w");
 	std::string board_dimension_str = get_arg(argc, argv, "-n");
 
-	try {
-		int board_dimension = std::stoi(board_dimension_str);
-		if (board_dimension < 1) {
+	int board_dimension;
+	if (board_dimension_str.empty()) {
+		board_dimension = 16;
+	}
+	else {
+		try {
+			board_dimension = std::stoi(board_dimension_str);
+			if (board_dimension < 1) {
+				print_usage();
+				return 1;
+			}
+		}
+		catch (...) {
 			print_usage();
 			return 1;
 		}
-	}
-	catch (...) {
-		print_usage();
-		return 1;
 	}
 	if (letter_scores_path.empty() || valid_words_path.empty()) {
 		print_usage();
 		return 1;
 	}
+
+	return play_scrabble(letter_scores_path, valid_words_path, board_dimension);
 }
