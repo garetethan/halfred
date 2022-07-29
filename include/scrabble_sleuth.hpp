@@ -3,11 +3,13 @@
 #include <cassert>
 #include <cstdlib>
 #include <fstream>
+#include <iostream>
 #include <iterator>
 #include <regex>
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <sstream>
 #include <vector>
 
 namespace scrabble_sleuth {
@@ -16,7 +18,7 @@ namespace scrabble_sleuth {
 	const std::string person_word_prompt{"What word do you want to play?"};
 	const std::string person_location_prompt{"Where do you want to play the word?"};
 
-	std::ifstream defensively_open(std::string path) {
+	std::ifstream defensively_open(const std::string path) {
 		std::ifstream file_{path};
 		if (!file_.is_open()) {
 			throw std::runtime_error{std::string{"Unable to open "} + path + "."};
@@ -24,17 +26,26 @@ namespace scrabble_sleuth {
 		return file_;
 	}
 
-	std::string get_input(std::string prompt, std::istream& in = std::cin, std::ostream& out = std::cout) {
+	std::string get_input(const std::string prompt, std::istream& in = std::cin, std::ostream& out = std::cout) {
 		out << prompt << " " << std::flush;
 		std::string input;
 		in >> input;
 		return input;
 	}
 
+	std::stringstream output_n_times(std::stringstream& out, const char ch, const size_type n) {
+		for (unsigned int i = 0; i < n; ++i) {
+			out << ch;
+		}
+		// g++ gives a compilation error if I do not explicitly move here.
+		return std::move(out);
+	}
+
 	class ScrabbleGame {
 		public:
 
-		static constexpr unsigned int letter_offset = 97;
+		static constexpr unsigned short lowercase_offset = 97;
+		static constexpr unsigned short uppercase_offset = 65;
 		static constexpr size_type letter_space_size = 26;
 		static constexpr size_type available_letter_sum = 8;
 		static constexpr char empty = '_';
@@ -89,6 +100,7 @@ namespace scrabble_sleuth {
 			if (is_board_cramped()) {
 				return false;
 			}
+			out << board_state();
 			return true;
 		}
 
@@ -102,6 +114,44 @@ namespace scrabble_sleuth {
 				}
 			}
 			return empty_count > board_dimension_ * board_dimension_;
+		}
+
+		std::string board_state() const {
+			/*
+			  |A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|
+			1 |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_| 1
+			2 |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_| 2
+			3 |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_| 3
+			4 |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_| 4
+			5 |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_| 5
+			6 |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_| 6
+			7 |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_| 7
+			8 |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_| 8
+			9 |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_| 9
+			10|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|10
+			11|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|11
+			12|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|12
+			13|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|13
+			14|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|14
+			15|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|15
+			16|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|16
+			  |A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|
+			*/
+			std::stringstream out{};
+			std::stringstream row_index_stream{};
+			row_index_stream << board_dimension_;
+			size_type row_index_width = row_index_stream.str().size();
+			out.width(row_index_width);
+			output_column_indexes(out, row_index_width);
+			for (size_type row_i = 0; row_i < board_dimension_; ++row_i) {
+				out << std::left << row_i + 1 << "|";
+				for (const char& ch : board_.at(row_i)) {
+					out << ch << "|";
+				}
+				out << std::right << row_i + 1;
+			}
+			output_column_indexes(out, row_index_width);
+			return out.str();
 		}
 
 		std::array<int, letter_space_size> letter_scores() const noexcept {
@@ -260,6 +310,16 @@ namespace scrabble_sleuth {
 			return p.score;
 		}
 
+		std::stringstream output_column_indexes(std::stringstream& out, unsigned int row_index_width) const {
+			output_n_times(out, ' ', row_index_width) << '|';
+			for (size_type col = 0; col < board_dimension_; col++) {
+				out << static_cast<char>(col + uppercase_offset) << '|';
+			}
+			output_n_times(out, ' ', row_index_width) << std::endl;
+			// g++ gives a compilation error if I do not explicitly move here.
+			return std::move(out);
+		}
+
 		static size_type letter_to_index(char le);
 	};
 
@@ -269,7 +329,7 @@ namespace scrabble_sleuth {
 		if (le == '*') {
 			return ScrabbleGame::letter_space_size;
 		}
-		return static_cast<size_type>(le) - ScrabbleGame::letter_offset;
+		return static_cast<size_type>(le) - ScrabbleGame::lowercase_offset;
 	}
 
 	std::string ScrabbleGame::clean_word(std::string word) {
