@@ -1,7 +1,3 @@
-/*
-* evaluate_play should really return a pair or in some other way indicate that a play is invalid, since letters can have negative scores, and while such a play would not usually be advantageous, the alternative is ending the game.
-*/
-
 #include <algorithm>
 #include <iostream>
 #include <string>
@@ -30,9 +26,10 @@ bool get_flag(const int argc, char** argv, const std::string name) {
 }
 
 int main(int argc, char* argv[]) {
-	std::string letter_scores_path = get_arg(argc, argv, "-l");
-	std::string valid_words_path = get_arg(argc, argv, "-w");
-	std::string board_dimension_str = get_arg(argc, argv, "-n");
+	const std::string letter_scores_path = get_arg(argc, argv, "-l");
+	const std::string valid_words_path = get_arg(argc, argv, "-w");
+	const std::string board_dimension_str = get_arg(argc, argv, "-n");
+	const bool verbose = get_flag(argc, argv, "-v");
 
 	int board_dimension;
 	if (board_dimension_str.empty()) {
@@ -56,5 +53,5 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	return play_scrabble(letter_scores_path, valid_words_path, board_dimension);
+	return play_scrabble(letter_scores_path, valid_words_path, board_dimension, verbose);
 }
