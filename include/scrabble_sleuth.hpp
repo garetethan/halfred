@@ -3,8 +3,10 @@
 #include <cassert>
 #include <cstdlib>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <iterator>
+#include <random>
 #include <regex>
 #include <set>
 #include <stdexcept>
@@ -33,12 +35,11 @@ namespace scrabble_sleuth {
 		return input;
 	}
 
-	std::stringstream output_n_times(std::stringstream& out, const char ch, const size_type n) {
+	std::stringstream& output_n_times(std::stringstream& out, const char ch, const size_type n) {
 		for (unsigned int i = 0; i < n; ++i) {
 			out << ch;
 		}
-		// g++ gives a compilation error if I do not explicitly move here.
-		return std::move(out);
+		return out;
 	}
 
 	class ScrabbleGame {
@@ -60,17 +61,41 @@ namespace scrabble_sleuth {
 			int score;
 		};
 
-		ScrabbleGame(std::array<int, letter_space_size> letter_scores, std::vector<std::string> valid_words, size_type board_dimension) : letter_scores_(letter_scores), valid_words_(valid_words), board_dimension_(board_dimension), board_(board_dimension) {
+		using play_with_used = std::pair<play, std::array<unsigned int, letter_space_size + 1>>;
+
+		ScrabbleGame(std::array<int, letter_space_size> letter_scores, std::vector<std::string> valid_words, size_type board_dimension) :
+			letter_scores_(letter_scores),
+			valid_words_(valid_words),
+			board_dimension_(board_dimension),
+			// value initialize arrays so they are filled with zeros
+			person_available_letter_counts_(),
+			computer_available_letter_counts_(),
+			person_score_(0),
+			computer_score_(0),
+			random_bit_gen_() {
 			// This limit has been chosen because of the number of letters in the English alphabet.
 			assert(board_dimension_ <= 24);
+
+			tile_weights_.front() = 1.f / letter_scores_.front();
+			for (size_type i = 1; i < letter_space_size; ++i) {
+				tile_weights_.at(i) = tile_weights_.at(i - 1) + (1.f / letter_scores_.at(i));
+			}
+			// let blank tiles have a weight equal to the average of all letters
+			tile_weights_.back() = tile_weights_.at(letter_space_size - 1) + (tile_weights_.at(letter_space_size - 1) / letter_space_size);
+			random_dist_ = std::uniform_real_distribution<float>{0.f, tile_weights_.back()};
+			draw_tiles(person_available_letter_counts_, available_letter_sum);
+			draw_tiles(computer_available_letter_counts_, available_letter_sum);
+
+			board_.reserve(board_dimension);
 			const char empty_copy = empty;
 			for (size_type row_i = 0; row_i < board_dimension_; ++row_i) {
-				board_.emplace_back(board_dimension, empty_copy);
+				board_.emplace_back(board_dimension_, empty_copy);
 			}
 		}
 
 		bool turn(std::string person_word, std::string person_location, std::ostream& out = std::cout) {
 			play person_play = parse_location(person_location);
+			std::array<unsigned int, letter_space_size + 1> person_tiles_used;
 			while (person_play.score <= 0) {
 				while (person_word.empty()) {
 					out << "Invalid word. Be sure to use only lowercase English letters." << std::endl;
@@ -82,25 +107,39 @@ namespace scrabble_sleuth {
 					play person_play = parse_location(person_location);
 				}
 				person_play.word = person_word;
-				evaluate_play(person_available_letter_counts_, person_play);
+				person_tiles_used = evaluate_play(person_available_letter_counts_, person_play);
 				if (person_play.score <= 0) {
 					out << "That word cannot be played there. Try again." << std::endl;
 					person_word = clean_word(get_input(person_word_prompt));
 					person_location = get_input(person_location_prompt);
 				}
 			}
+			for (size_type i = 0; i < letter_space_size + 1; ++i) {
+				person_available_letter_counts_.at(i) -= person_tiles_used.at(i);
+			}
 			person_score_ += person_play.score;
+			apply_play_to_board(person_play);
+			draw_tiles(person_available_letter_counts_, std::accumulate(person_tiles_used.begin(), person_tiles_used.end(), 0));
 
-			play computer_play = best_overall();
+			auto computer_choice = best_overall();
+			play computer_play = computer_choice.first;
+			auto computer_tiles_used = computer_choice.second;
 			if (computer_play.score < 1) {
+				out << "Scrabble Sleuth does not see any possible plays, so the game is over." << std::endl;
 				return false;
+			}
+			for (size_type i = 0; i < letter_space_size + 1; ++i) {
+				computer_available_letter_counts_.at(i) -= computer_tiles_used.at(i);
 			}
 			apply_play_to_board(computer_play);
 			computer_score_ += computer_play.score;
+			draw_tiles(computer_available_letter_counts_, std::accumulate(computer_tiles_used.begin(), computer_tiles_used.end(), 0));
+
 			if (is_board_cramped()) {
+				out << "More than half the spaces on the board have been filled, so the game is over." << std::endl;
 				return false;
 			}
-			out << board_state();
+			out << game_state();
 			return true;
 		}
 
@@ -116,7 +155,9 @@ namespace scrabble_sleuth {
 			return empty_count > board_dimension_ * board_dimension_;
 		}
 
-		std::string board_state() const {
+		std::string game_state() const {
+			std::stringstream out{};
+			out << "Player: " << person_score_ << "   Scrabble Sleuth: " << computer_score_ << std::endl;
 			/*
 			  |A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|
 			1 |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_| 1
@@ -137,20 +178,16 @@ namespace scrabble_sleuth {
 			16|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|16
 			  |A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|
 			*/
-			std::stringstream out{};
-			std::stringstream row_index_stream{};
-			row_index_stream << board_dimension_;
-			size_type row_index_width = row_index_stream.str().size();
-			out.width(row_index_width);
-			output_column_indexes(out, row_index_width);
+			output_column_indexes(out);
 			for (size_type row_i = 0; row_i < board_dimension_; ++row_i) {
-				out << std::left << row_i + 1 << "|";
+				out << std::setw(2) << std::left << row_i + 1;
+				out << "|";
 				for (const char& ch : board_.at(row_i)) {
 					out << ch << "|";
 				}
-				out << std::right << row_i + 1;
+				out << std::setw(2) << std::right << row_i + 1 << std::endl;
 			}
-			output_column_indexes(out, row_index_width);
+			output_column_indexes(out);
 			return out.str();
 		}
 
@@ -178,15 +215,25 @@ namespace scrabble_sleuth {
 		std::vector<std::vector<char>> board_;
 		size_type board_dimension_;
 
+		std::array<float, letter_space_size + 1> tile_weights_;
+		std::mt19937 random_bit_gen_;
+		std::uniform_real_distribution<float> random_dist_;
+
 		// + 1 is for blank tiles
 		std::array<unsigned int, letter_space_size + 1> person_available_letter_counts_;
 		std::array<unsigned int, letter_space_size + 1> computer_available_letter_counts_;
 		int person_score_;
 		int computer_score_;
 
+		void draw_tiles(std::array<unsigned int, letter_space_size + 1>& counts, const unsigned int n) {
+			for (unsigned int i = 0; i < n; ++i) {
+				++counts.at(std::upper_bound(tile_weights_.begin(), tile_weights_.end(), random_dist_(random_bit_gen_)) - tile_weights_.begin());
+			}
+		}
+
 		play parse_location(std::string location) {
-			std::smatch location_match{};
 			play p{0, 0, true, "to be determined", -1};
+			std::smatch location_match{};
 			if (regex_match(location, location_match, valid_location)) {
 				try {
 					p.row = std::stoi(location_match[1].str());
@@ -200,25 +247,24 @@ namespace scrabble_sleuth {
 			return p;
 		}
 
-		play best_overall() {
-			play best_overall{0, 0, true, "to be determined", -1};
-			play curr_best;
+		play_with_used best_overall() {
+			play null_play{0, 0, true, "to be determined", -1};
+			std::array<unsigned int, letter_space_size + 1> null_array;
+			auto best_option = play_with_used{null_play, null_array};
 			for (size_type row_i = 0; row_i < board_dimension_; ++row_i) {
-				curr_best = best_in_row(row_i, true);
-				if (curr_best.score > best_overall.score) {
-					best_overall = curr_best;
+				auto option = best_in_row(row_i, true);
+				if (option.first.score > best_option.first.score) {
+					best_option = option;
+				}
+				option = best_in_row(row_i, false);
+				if (option.first.score > best_option.first.score) {
+					best_option = option;
 				}
 			}
-			for (size_type col_i = 0; col_i < board_dimension_; ++col_i) {
-				curr_best = best_in_row(col_i, false);
-				if (curr_best.score > best_overall.score) {
-					best_overall = curr_best;
-				}
-			}
-			return best_overall;
+			return best_option;
 		}
 
-		play best_in_row(size_type row_index, bool is_row = true) {
+		play_with_used best_in_row(size_type row_index, bool is_row = true) {
 			std::vector<char> board_row;
 			if (is_row) {
 				board_row = board_.at(row_index);
@@ -235,7 +281,10 @@ namespace scrabble_sleuth {
 					row_letters.insert(ch);
 				}
 			}
-			play best_play{0, 0, true, "to be determined", -1};
+
+			play null_play{0, 0, true, "to be determined", -1};
+			std::array<unsigned int, letter_space_size + 1> null_array;
+			auto best_option = play_with_used{null_play, null_array};
 
 			for (const std::string& word : valid_words_) {
 				if (word.size() > board_dimension_) {
@@ -254,16 +303,16 @@ namespace scrabble_sleuth {
 							else {
 								curr_play = play{pos, row_index, is_row, word, -1};
 							}
-							evaluate_play(computer_available_letter_counts_, curr_play);
-							if (curr_play.score > best_play.score) {
-								best_play = curr_play;
+							auto tiles_used = evaluate_play(computer_available_letter_counts_, curr_play);
+							if (curr_play.score > best_option.first.score) {
+								best_option = play_with_used{curr_play, tiles_used};
 							}
 						}
 						pos = word.find(letter, pos + 1);
 					}
 				}
 			}
-			return best_play;
+			return best_option;
 		}
 
 		void apply_play_to_board(play p) {
@@ -280,50 +329,60 @@ namespace scrabble_sleuth {
 			}
 		}
 
-		int evaluate_play(std::array<unsigned int, letter_space_size + 1>& available_letter_counts, play p) {
+		std::array<unsigned int, letter_space_size + 1> evaluate_play(const std::array<unsigned int, letter_space_size + 1>& available_letter_counts, play p) {
 			p.score = 0;
-			bool letters_used = false;
-			for (const char& ch : p.word) {
-				size_type letter_as_index = letter_to_index(ch);
+			std::array<unsigned int, letter_space_size + 1> tiles_used{};
+			for (unsigned int word_i = 0; word_i < p.word.size(); ++word_i) {
+				size_type letter_as_index = letter_to_index(p.word.at(word_i));
 				try {
-					if (board_.at(p.row).at(p.col) == ch) {
+					if (board_.at(p.row).at(p.col) == p.word.at(word_i)) {
 						p.score += letter_scores_.at(letter_as_index);
 					}
-					else if (board_.at(p.row).at(p.col) == empty && available_letter_counts.at(letter_as_index) > 0) {
-						letters_used = true;
-						--available_letter_counts.at(letter_as_index);
-						p.score += letter_scores_.at(letter_as_index);
+					else if (board_.at(p.row).at(p.col) == empty) {
+						if (available_letter_counts.at(letter_as_index) > tiles_used.at(letter_as_index)) {
+							++tiles_used.at(letter_as_index);
+							p.score += letter_scores_.at(letter_as_index);
+						}
+						// can we use a blank tile?
+						else if (available_letter_counts.back() > tiles_used.back()) {
+							++tiles_used.back();
+							// no score awarded for use of a blank tile
+						}
+						else {
+							p.score = -1;
+							return tiles_used;
+						}
 					}
 					else {
 						p.score = -1;
-						break;
+						return tiles_used;
 					}
 				}
 				catch (std::out_of_range) {
 					p.score = -1;
-					break;
+					return tiles_used;
 				}
 			}
-			if (!letters_used) {
+			// if the word specified is already in the board in full
+			if (std::none_of(tiles_used.begin(), tiles_used.end(), [](auto k){return k > 0;})) {
 				p.score = -1;
 			}
-			return p.score;
+			return tiles_used;
 		}
 
-		std::stringstream output_column_indexes(std::stringstream& out, unsigned int row_index_width) const {
-			output_n_times(out, ' ', row_index_width) << '|';
+		std::stringstream& output_column_indexes(std::stringstream& out) const {
+			output_n_times(out, ' ', 2) << '|';
 			for (size_type col = 0; col < board_dimension_; col++) {
 				out << static_cast<char>(col + uppercase_offset) << '|';
 			}
-			output_n_times(out, ' ', row_index_width) << std::endl;
-			// g++ gives a compilation error if I do not explicitly move here.
-			return std::move(out);
+			output_n_times(out, ' ', 2) << std::endl;
+			return out;
 		}
 
 		static size_type letter_to_index(char le);
 	};
 
-	const std::regex ScrabbleGame::valid_location{"(\\d{1,2})([a-z])([ad])"};
+	const std::regex ScrabbleGame::valid_location{"(\\d+)([a-z])([ad])"};
 
 	size_type ScrabbleGame::letter_to_index(char le) {
 		if (le == '*') {
@@ -363,7 +422,9 @@ namespace scrabble_sleuth {
 				valid_words.push_back(word);
 			}
 		}
+
 		ScrabbleGame game{letter_scores, valid_words, board_dimension};
+		out << game.game_state();
 		std::string person_word;
 		std::string person_location;
 		do {
