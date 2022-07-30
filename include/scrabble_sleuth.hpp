@@ -17,9 +17,6 @@
 namespace scrabble_sleuth {
 	using size_type = unsigned int;
 
-	const std::string person_word_prompt{"What word do you want to play?"};
-	const std::string person_location_prompt{"Where do you want to play the word?"};
-
 	std::ifstream defensively_open(const std::string path) {
 		std::ifstream file_{path};
 		if (!file_.is_open()) {
@@ -94,25 +91,21 @@ namespace scrabble_sleuth {
 			}
 		}
 
-		bool turn(std::string person_word, std::string person_location, std::ostream& out = std::cout) {
-			play person_play = parse_location(person_location);
+		bool turn(std::istream& in = std::cin, std::ostream& out = std::cout) {
 			std::array<unsigned int, letter_space_size + 1> person_tiles_used;
-			while (person_play.score <= 0) {
-				while (person_word.empty()) {
-					out << "Invalid word. Be sure to use only lowercase English letters." << std::endl;
-					person_word = clean_word(get_input(person_word_prompt));
+			std::string person_word;
+			play person_play{0, 0, true, "to be determined", -1};
+			while (person_play.score < 0) {
+				person_word = get_word(in, out);
+				// An underscore means the person is giving up on spelling any more words, ending the game.
+				if (person_word == "_") {
+					return false;
 				}
-				while (person_play.row == 0) {
-					out << "Invalid location format. Input the row integer, column letter (lowercase), and direction letter (either 'a' for 'across' or 'd' for 'down') without any separating characters. For example: 11gd" << std::endl;
-					person_location = get_input(person_location_prompt);
-					play person_play = parse_location(person_location);
-				}
+				person_play = get_location(in, out);
 				person_play.word = person_word;
 				person_tiles_used = evaluate_play(person_available_letter_counts_, person_play);
-				if (person_play.score <= 0) {
+				if (person_play.score < 0) {
 					out << "That word cannot be played there. Try again." << std::endl;
-					person_word = clean_word(get_input(person_word_prompt));
-					person_location = get_input(person_location_prompt);
 				}
 			}
 			for (size_type i = 0; i < letter_space_size + 1; ++i) {
@@ -198,7 +191,7 @@ namespace scrabble_sleuth {
 			if (verbose_) {
 				out << "Scrabble Sleuth's tiles: ";
 				for (unsigned int i = 0; i < letter_space_size + 1; ++i) {
-				output_n_times(out, index_to_letter(i), computer_available_letter_counts_.at(i));
+					output_n_times(out, index_to_letter(i), computer_available_letter_counts_.at(i));
 				}
 			}
 			out << std::endl << std::endl;
@@ -396,6 +389,29 @@ namespace scrabble_sleuth {
 			return out;
 		}
 
+		std::string get_word(std::istream& in = std::cin, std::ostream& out = std::cout) {
+			std::string word = get_input("What word do you want to play?", in, out);
+			// if the person is giving up on spelling any more words
+			if (word == "_") {
+				return word;
+			}
+			word = clean_word(word);
+			if (word.empty() || std::find(valid_words_.begin(), valid_words_.end(), word) == valid_words_.end()) {
+				out << "Invalid word. Be sure to use only lowercase English letters. If you are unable to spell any more words, type \"_\" (an underscore) to end the game." << std::endl;
+				return get_word(in, out);
+			}
+			return word;
+		}
+
+		play get_location(std::istream& in = std::cin, std::ostream& out = std::cout) {
+			play p = parse_location(get_input("Where do you want to play the word?", in, out));
+			if (p.row < 1 || p.row > board_dimension_ || p.col < 1 || p.col > board_dimension_) {
+				out << "Invalid location. Input the row integer (1-indexed), column letter (lowercase), and direction letter (either 'a' for 'across' or 'd' for 'down') without any separating characters. For example: 11gd" << std::endl;
+				return get_location(in, out);
+			}
+			return p;
+		}
+
 		static size_type letter_to_index(char le);
 		static char index_to_letter(size_type ind);
 	};
@@ -450,12 +466,7 @@ namespace scrabble_sleuth {
 
 		ScrabbleGame game{letter_scores, valid_words, board_dimension, verbose};
 		out << game.game_state();
-		std::string person_word;
-		std::string person_location;
-		do {
-			person_word = ScrabbleGame::clean_word(get_input(person_word_prompt));
-			person_location = get_input(person_location_prompt);
-		} while (game.turn(person_word, person_location, out));
+		while (game.turn(in, out)) {}
 
 		if (game.person_score() > game.computer_score()) {
 			out << "Congradulations, you beat Scrabble Sleuth!" << std::endl;
