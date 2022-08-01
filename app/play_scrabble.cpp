@@ -7,7 +7,7 @@
 using namespace scrabble_sleuth;
 
 void print_usage(std::ostream& out = std::cout) {
-	out << "Usage: ./scrabble_sleuth -l letter_scores.txt -w valid_words.txt [-n 16]" << std::endl;
+	out << "Usage: ./scrabble_sleuth -l letter_scores.txt -w valid_words.txt [-n 16] [-v]" << std::endl;
 }
 
 std::string get_arg(const int argc, char** argv, const std::string name) {
@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
 			return 1;
 		}
 	}
-	if (letter_scores_path.empty() || valid_words_path.empty()) {
+	if (valid_words_path.empty()) {
 		print_usage();
 		return 1;
 	}

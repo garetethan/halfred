@@ -53,37 +53,60 @@ namespace scrabble_sleuth {
 
 		using play_with_used = std::pair<play, std::array<unsigned int, letter_space_size + 1>>;
 
-		ScrabbleGame(std::array<int, letter_space_size> letter_scores, std::vector<std::string> valid_words, size_type board_dimension, bool verbose = false) :
-			letter_scores_(letter_scores),
-			valid_words_(valid_words),
-			board_dimension_(board_dimension),
-			// value initialize arrays so they are filled with zeros
-			person_available_letter_counts_(),
-			computer_available_letter_counts_(),
-			person_score_(0),
-			computer_score_(0),
-			random_bit_gen_(),
-			verbose_(verbose) {
-			// This limit has been chosen because of the number of letters in the English alphabet.
-			assert(board_dimension_ <= 24);
+		ScrabbleGame() : verbose_(false) {}
 
-			tile_weights_.front() = 1.f / letter_scores_.front();
-			for (size_type i = 1; i < letter_space_size; ++i) {
-				tile_weights_.at(i) = tile_weights_.at(i - 1) + (1.f / letter_scores_.at(i));
+		ScrabbleGame(std::array<unsigned int, letter_space_size> letter_scores, std::vector<std::string> valid_words, size_type board_dimension, bool verbose = false) :
+				letter_scores_(letter_scores),
+				valid_words_(valid_words),
+				board_dimension_(board_dimension),
+				// value initialize arrays so they are filled with zeros
+				person_available_letter_counts_(),
+				computer_available_letter_counts_(),
+				verbose_(verbose) {
+			init();
+		}
+
+		ScrabbleGame(std::vector<std::string> valid_words, size_type board_dimension, bool verbose = false) :
+				letter_scores_(),
+				valid_words_(valid_words),
+				board_dimension_(board_dimension),
+				// value initialize arrays so they are filled with zeros
+				person_available_letter_counts_(),
+				computer_available_letter_counts_(),
+				verbose_(verbose) {
+			std::array<unsigned int, letter_space_size> letter_counts{};
+			unsigned int total_letters = 0;
+			for (const std::string& word : valid_words_) {
+				for (const char& le : word) {
+					++letter_counts.at(letter_to_index(le));
+					++total_letters;
+				}
 			}
-			// let blank tiles have a weight equal to the average of all letters
-			tile_weights_.back() = tile_weights_.at(letter_space_size - 1) + (tile_weights_.at(letter_space_size - 1) / letter_space_size);
-			random_dist_ = std::uniform_real_distribution<float>{0.f, tile_weights_.back()};
-			draw_tiles(person_available_letter_counts_, available_letter_sum);
-			draw_tiles(computer_available_letter_counts_, available_letter_sum);
 
-			std::sort(valid_words_.begin(), valid_words_.end());
-
-			board_.reserve(board_dimension);
-			const char empty_copy = empty;
-			for (size_type row_i = 0; row_i < board_dimension_; ++row_i) {
-				board_.emplace_back(board_dimension_, empty_copy);
+			for (unsigned int i = 0; i < letter_scores_.size(); ++i) {
+				letter_scores_.at(i) = std::max(total_letters / letter_counts.at(i), 1U);
 			}
+
+			init();
+		}
+
+		ScrabbleGame(const ScrabbleGame& other) = default;
+		ScrabbleGame(ScrabbleGame&& other) = default;
+
+		ScrabbleGame& operator=(const ScrabbleGame& other) {
+			valid_words_ = other.valid_words();
+			letter_scores_ = other.letter_scores();
+			board_dimension_ = other.board_dimension();
+			init();
+			return *this;
+		}
+
+		ScrabbleGame& operator=(ScrabbleGame&& other) {
+			valid_words_ = other.valid_words();
+			letter_scores_ = other.letter_scores();
+			board_dimension_ = other.board_dimension();
+			init();
+			return *this;
 		}
 
 		bool turn(std::istream& in = std::cin, std::ostream& out = std::cout) {
@@ -193,7 +216,7 @@ namespace scrabble_sleuth {
 			return out.str();
 		}
 
-		std::array<int, letter_space_size> letter_scores() const noexcept {
+		std::array<unsigned int, letter_space_size> letter_scores() const noexcept {
 			return letter_scores_;
 		}
 
@@ -201,11 +224,15 @@ namespace scrabble_sleuth {
 			return valid_words_;
 		}
 
-		int person_score() const noexcept {
+		size_type board_dimension() const noexcept {
+			return board_dimension_;
+		}
+
+		unsigned int person_score() const noexcept {
 			return person_score_;
 		}
 
-		int computer_score() const noexcept {
+		unsigned int computer_score() const noexcept {
 			return computer_score_;
 		}
 
@@ -213,20 +240,48 @@ namespace scrabble_sleuth {
 
 		private:
 		std::vector<std::string> valid_words_;
-		std::array<int, letter_space_size> letter_scores_;
+		std::array<unsigned int, letter_space_size> letter_scores_;
 		std::vector<std::vector<char>> board_;
 		size_type board_dimension_;
 		const bool verbose_;
 
 		std::array<float, letter_space_size + 1> tile_weights_;
+		std::random_device random_dev_;
 		std::mt19937 random_bit_gen_;
 		std::uniform_real_distribution<float> random_dist_;
 
 		// + 1 is for blank tiles
 		std::array<unsigned int, letter_space_size + 1> person_available_letter_counts_;
 		std::array<unsigned int, letter_space_size + 1> computer_available_letter_counts_;
-		int person_score_;
-		int computer_score_;
+		unsigned int person_score_;
+		unsigned int computer_score_;
+
+		void init() {
+			// This limit has been chosen because of the number of letters in the English alphabet.
+			assert(board_dimension_ <= 24);
+
+			tile_weights_.front() = 1.f / letter_scores_.front();
+			for (size_type i = 1; i < letter_space_size; ++i) {
+				tile_weights_.at(i) = tile_weights_.at(i - 1) + (1.f / letter_scores_.at(i));
+			}
+			// let blank tiles have a weight equal to the average of all letters
+			tile_weights_.back() = tile_weights_.at(letter_space_size - 1) + (tile_weights_.at(letter_space_size - 1) / letter_space_size);
+			random_bit_gen_ = std::mt19937{random_dev_()};
+			random_dist_ = std::uniform_real_distribution<float>{0.f, tile_weights_.back()};
+			draw_tiles(person_available_letter_counts_, available_letter_sum);
+			draw_tiles(computer_available_letter_counts_, available_letter_sum);
+
+			std::sort(valid_words_.begin(), valid_words_.end());
+
+			board_.reserve(board_dimension_);
+			const char empty_copy = empty;
+			for (size_type row_i = 0; row_i < board_dimension_; ++row_i) {
+				board_.emplace_back(board_dimension_, empty_copy);
+			}
+
+			person_score_ = 0;
+			computer_score_ = 0;
+		}
 
 		void draw_tiles(std::array<unsigned int, letter_space_size + 1>& counts, const unsigned int n) {
 			for (unsigned int i = 0; i < n; ++i) {
@@ -498,16 +553,6 @@ namespace scrabble_sleuth {
 	}
 
 	int play_scrabble(std::string letter_scores_path, std::string valid_words_path, size_type board_dimension, bool verbose = false, std::istream& in = std::cin, std::ostream& out = std::cout) {
-		std::ifstream letter_scores_file = defensively_open(letter_scores_path);
-		std::array<int, ScrabbleGame::letter_space_size> letter_scores;
-		for (int& score : letter_scores) {
-			letter_scores_file >> score;
-			if (!letter_scores_file) {
-				out << "Error: " << letter_scores_path << " contains fewer than " << ScrabbleGame::letter_space_size << " letter scores." << std::endl;
-				return 2;
-			}
-		}
-
 		std::ifstream valid_words_file = defensively_open(valid_words_path);
 		std::vector<std::string> valid_words{};
 		std::string word;
@@ -518,7 +563,24 @@ namespace scrabble_sleuth {
 			}
 		}
 
-		ScrabbleGame game{letter_scores, valid_words, board_dimension, verbose};
+		// if user chose to not provide letter scores explicitly
+		ScrabbleGame game;
+		if (letter_scores_path.empty()) {
+			game = ScrabbleGame{valid_words, board_dimension, verbose};
+		}
+		else {
+			std::ifstream letter_scores_file = defensively_open(letter_scores_path);
+			std::array<unsigned int, ScrabbleGame::letter_space_size> letter_scores;
+			for (unsigned int& score : letter_scores) {
+				letter_scores_file >> score;
+				if (!letter_scores_file) {
+					out << "Error: " << letter_scores_path << " contains fewer than " << ScrabbleGame::letter_space_size << " letter scores." << std::endl;
+					return 1;
+				}
+			}
+			game = ScrabbleGame{letter_scores, valid_words, board_dimension, verbose};
+		}
+
 		out << game.game_state();
 		while (game.turn(in, out)) {}
 
