@@ -97,6 +97,7 @@ namespace scrabble_sleuth {
 			valid_words_ = other.valid_words();
 			letter_scores_ = other.letter_scores();
 			board_dimension_ = other.board_dimension();
+			verbose_ = other.verbose();
 			init();
 			return *this;
 		}
@@ -105,6 +106,7 @@ namespace scrabble_sleuth {
 			valid_words_ = other.valid_words();
 			letter_scores_ = other.letter_scores();
 			board_dimension_ = other.board_dimension();
+			verbose_ = other.verbose();
 			init();
 			return *this;
 		}
@@ -228,6 +230,10 @@ namespace scrabble_sleuth {
 			return board_dimension_;
 		}
 
+		bool verbose() const noexcept {
+			return verbose_;
+		}
+
 		unsigned int person_score() const noexcept {
 			return person_score_;
 		}
@@ -243,7 +249,7 @@ namespace scrabble_sleuth {
 		std::array<unsigned int, letter_space_size> letter_scores_;
 		std::vector<std::vector<char>> board_;
 		size_type board_dimension_;
-		const bool verbose_;
+		bool verbose_;
 
 		std::array<float, letter_space_size + 1> tile_weights_;
 		std::random_device random_dev_;
