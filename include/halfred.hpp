@@ -15,7 +15,7 @@
 #include <sstream>
 #include <vector>
 
-namespace scrabble_sleuth {
+namespace halfred {
 	using size_type = unsigned int;
 
 	std::ifstream defensively_open(const std::string path) {
@@ -33,7 +33,7 @@ namespace scrabble_sleuth {
 		return input;
 	}
 
-	class ScrabbleGame {
+	class Game {
 		public:
 
 		static constexpr unsigned short lowercase_offset = 97;
@@ -54,26 +54,26 @@ namespace scrabble_sleuth {
 
 		using play_with_used = std::pair<play, std::array<unsigned int, letter_space_size + 1>>;
 
-		ScrabbleGame() : verbose_(false) {}
+		Game() : verbose_(false) {}
 
-		ScrabbleGame(std::array<unsigned int, letter_space_size> letter_scores, std::vector<std::string> valid_words, size_type board_dimension, bool verbose = false) :
+		Game(std::array<unsigned int, letter_space_size> letter_scores, std::vector<std::string> valid_words, size_type board_dimension, bool verbose = false) :
 				letter_scores_(letter_scores),
 				valid_words_(valid_words),
 				board_dimension_(board_dimension),
 				// value initialize arrays so they are filled with zeros
 				person_available_letter_counts_(),
-				computer_available_letter_counts_(),
+				hal_available_letter_counts_(),
 				verbose_(verbose) {
 			init();
 		}
 
-		ScrabbleGame(std::vector<std::string> valid_words, size_type board_dimension, bool verbose = false) :
+		Game(std::vector<std::string> valid_words, size_type board_dimension, bool verbose = false) :
 				letter_scores_(),
 				valid_words_(valid_words),
 				board_dimension_(board_dimension),
 				// value initialize arrays so they are filled with zeros
 				person_available_letter_counts_(),
-				computer_available_letter_counts_(),
+				hal_available_letter_counts_(),
 				verbose_(verbose) {
 			std::array<unsigned int, letter_space_size> letter_counts{};
 			unsigned int total_letters = 0;
@@ -91,10 +91,10 @@ namespace scrabble_sleuth {
 			init();
 		}
 
-		ScrabbleGame(const ScrabbleGame& other) = default;
-		ScrabbleGame(ScrabbleGame&& other) = default;
+		Game(const Game& other) = default;
+		Game(Game&& other) = default;
 
-		ScrabbleGame& operator=(const ScrabbleGame& other) {
+		Game& operator=(const Game& other) {
 			valid_words_ = other.valid_words();
 			letter_scores_ = other.letter_scores();
 			board_dimension_ = other.board_dimension();
@@ -103,7 +103,7 @@ namespace scrabble_sleuth {
 			return *this;
 		}
 
-		ScrabbleGame& operator=(ScrabbleGame&& other) {
+		Game& operator=(Game&& other) {
 			valid_words_ = other.valid_words();
 			letter_scores_ = other.letter_scores();
 			board_dimension_ = other.board_dimension();
@@ -136,20 +136,21 @@ namespace scrabble_sleuth {
 			apply_play_to_board(person_play);
 			draw_tiles(person_available_letter_counts_, std::accumulate(person_tiles_used.begin(), person_tiles_used.end(), 0));
 
-			auto computer_choice = best_overall();
-			play computer_play = computer_choice.first;
-			auto computer_tiles_used = computer_choice.second;
-			if (computer_play.score < 1) {
-				out << "Scrabble Sleuth does not see any possible plays, so the game is over." << std::endl;
+			// Halfred's turn.
+			auto hal_choice = best_overall();
+			play hal_play = hal_choice.first;
+			auto hal_letters_used = hal_choice.second;
+			if (hal_play.score < 1) {
+				out << "Halfred does not see any possible plays, so the game is over." << std::endl;
 				return false;
 			}
-			out << "Scrabble Sleuth played \"" << computer_play.word << "\" at " << computer_play.row + 1 << static_cast<char>(computer_play.col + lowercase_offset) << (computer_play.across ? 'a' : 'd') << " for " << computer_play.score << " points." << std::endl;
+			out << "Halfred played \"" << hal_play.word << "\" at " << hal_play.row + 1 << index_to_letter(hal_play.col) << (hal_play.across ? 'a' : 'd') << " for " << hal_play.score << " points." << std::endl;
 			for (size_type i = 0; i < letter_space_size + 1; ++i) {
-				computer_available_letter_counts_.at(i) -= computer_tiles_used.at(i);
+				hal_available_letter_counts_.at(i) -= hal_letters_used.at(i);
 			}
-			apply_play_to_board(computer_play);
-			computer_score_ += computer_play.score;
-			draw_tiles(computer_available_letter_counts_, std::accumulate(computer_tiles_used.begin(), computer_tiles_used.end(), 0));
+			apply_play_to_board(hal_play);
+			hal_score_ += hal_play.score;
+			draw_letters(hal_available_letter_counts_, std::accumulate(hal_letters_used.begin(), hal_letters_used.end(), 0));
 
 			if (is_board_cramped()) {
 				out << "More than half the spaces on the board have been filled, so the game is over." << std::endl;
@@ -173,7 +174,7 @@ namespace scrabble_sleuth {
 
 		std::string game_state() const {
 			std::stringstream out{};
-			out << "Player: " << person_score_ << "   Scrabble Sleuth: " << computer_score_ << std::endl;
+			out << "Player: " << person_score_ << "   Halfred: " << hal_score_ << std::endl;
 			/*
 			  |A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|
 			1 |_|_|_|_|_|_|_|_|_|_|_|_|_|_|_|_| 1
@@ -210,9 +211,9 @@ namespace scrabble_sleuth {
 			}
 			out << std::endl;
 			if (verbose_) {
-				out << "Scrabble Sleuth's tiles: ";
+				out << "Halfred's tiles: ";
 				for (unsigned int i = 0; i < letter_space_size + 1; ++i) {
-					out << std::string(computer_available_letter_counts_.at(i), index_to_letter(i));
+					out << std::string(hal_available_letter_counts_.at(i), index_to_letter(i));
 				}
 			}
 			out << std::endl << std::endl;
@@ -240,7 +241,7 @@ namespace scrabble_sleuth {
 		}
 
 		unsigned int computer_score() const noexcept {
-			return computer_score_;
+			return hal_score_;
 		}
 
 		static std::string clean_word(std::string word);
@@ -259,9 +260,9 @@ namespace scrabble_sleuth {
 
 		// + 1 is for blank tiles
 		std::array<unsigned int, letter_space_size + 1> person_available_letter_counts_;
-		std::array<unsigned int, letter_space_size + 1> computer_available_letter_counts_;
+		std::array<unsigned int, letter_space_size + 1> hal_available_letter_counts_;
 		unsigned int person_score_;
-		unsigned int computer_score_;
+		unsigned int hal_score_;
 
 		void init() {
 			// This limit has been chosen because of the number of letters in the English alphabet.
@@ -275,8 +276,8 @@ namespace scrabble_sleuth {
 			tile_weights_.back() = tile_weights_.at(letter_space_size - 1) + (tile_weights_.at(letter_space_size - 1) / letter_space_size);
 			random_bit_gen_ = std::mt19937{random_dev_()};
 			random_dist_ = std::uniform_real_distribution<float>{0.f, tile_weights_.back()};
-			draw_tiles(person_available_letter_counts_, available_letter_sum);
-			draw_tiles(computer_available_letter_counts_, available_letter_sum);
+			draw_letters(person_available_letter_counts_, available_letter_sum);
+			draw_letters(hal_available_letter_counts_, available_letter_sum);
 
 			std::sort(valid_words_.begin(), valid_words_.end());
 
@@ -287,7 +288,7 @@ namespace scrabble_sleuth {
 			}
 
 			person_score_ = 0;
-			computer_score_ = 0;
+			hal_score_ = 0;
 		}
 
 		void draw_tiles(std::array<unsigned int, letter_space_size + 1>& counts, const unsigned int n) {
@@ -365,7 +366,7 @@ namespace scrabble_sleuth {
 							else {
 								curr_play = play{index_letter.first, row_index, is_row, word, -1};
 							}
-							auto tiles_used = evaluate_play(computer_available_letter_counts_, curr_play);
+							auto letters_used = evaluate_play(hal_available_letter_counts_, curr_play);
 							if (curr_play.score > best_option.first.score) {
 								best_option = play_with_used{curr_play, tiles_used};
 							}
@@ -532,74 +533,73 @@ namespace scrabble_sleuth {
 		static char index_to_letter(size_type ind);
 	};
 
-	const std::regex ScrabbleGame::valid_location{"(\\d+)([a-z])([ad])"};
+	const std::regex Game::valid_location{"(\\d+)([a-z])([ad])"};
 
-	size_type ScrabbleGame::letter_to_index(char le) {
+	size_type Game::letter_to_index(char le) {
 		if (le == '*') {
-			return ScrabbleGame::letter_space_size;
+			return Game::letter_space_size;
 		}
-		return static_cast<size_type>(le) - ScrabbleGame::lowercase_offset;
+		return static_cast<size_type>(le) - Game::lowercase_offset;
 	}
 
-	char ScrabbleGame::index_to_letter(size_type ind) {
-		if (ind == ScrabbleGame::letter_space_size) {
+	char Game::index_to_letter(size_type ind) {
+		if (ind == Game::letter_space_size) {
 			return '*';
 		}
-		return static_cast<char>(ind + ScrabbleGame::lowercase_offset);
+		return static_cast<char>(ind + Game::lowercase_offset);
 	}
 
-	std::string ScrabbleGame::clean_word(std::string word) {
+	std::string Game::clean_word(std::string word) {
 		for (char& ch : word) {
 			ch = std::tolower(static_cast<unsigned char>(ch));
 			// letter_to_index assumes the char is lowercase ASCII, so underflow may occur here
-			if (ScrabbleGame::letter_to_index(ch) >= ScrabbleGame::letter_space_size) {
+			if (Game::letter_to_index(ch) >= Game::letter_space_size) {
 				return {""};
 			}
 		}
 		return word;
 	}
 
-	int play_scrabble(std::string letter_scores_path, std::string valid_words_path, size_type board_dimension, bool verbose = false, std::istream& in = std::cin, std::ostream& out = std::cout) {
+	int play_game(std::string letter_scores_path, std::string valid_words_path, size_type board_dimension, bool verbose = false, std::istream& in = std::cin, std::ostream& out = std::cout) {
 		std::ifstream valid_words_file = defensively_open(valid_words_path);
 		std::vector<std::string> valid_words{};
 		std::string word;
 		while (valid_words_file >> word) {
-			word = ScrabbleGame::clean_word(word);
+			word = Game::clean_word(word);
 			if (word.size() > 0 && word.size() < board_dimension) {
 				valid_words.push_back(word);
 			}
 		}
 
 		// if user chose to not provide letter scores explicitly
-		ScrabbleGame game;
+		Game game;
 		if (letter_scores_path.empty()) {
-			game = ScrabbleGame{valid_words, board_dimension, verbose};
+			game = Game{valid_words, board_dimension, verbose};
 		}
 		else {
 			std::ifstream letter_scores_file = defensively_open(letter_scores_path);
-			std::array<unsigned int, ScrabbleGame::letter_space_size> letter_scores;
+			std::array<unsigned int, Game::letter_space_size> letter_scores;
 			for (unsigned int& score : letter_scores) {
 				letter_scores_file >> score;
 				if (!letter_scores_file) {
-					out << "Error: " << letter_scores_path << " contains fewer than " << ScrabbleGame::letter_space_size << " letter scores." << std::endl;
+					out << "Error: " << letter_scores_path << " contains fewer than " << Game::letter_space_size << " letter scores." << std::endl;
 					return 1;
 				}
 			}
-			game = ScrabbleGame{letter_scores, valid_words, board_dimension, verbose};
+			game = Game{letter_scores, valid_words, board_dimension, verbose};
 		}
 
 		out << game.game_state();
 		while (game.turn(in, out)) {}
 
 		if (game.person_score() > game.computer_score()) {
-			out << "Congradulations, you beat Scrabble Sleuth!" << std::endl;
+			out << "Congradulations, you beat Halfred!" << std::endl;
 		}
 		else if (game.person_score() == game.computer_score()) {
 			out << "It's a tie." << std::endl;
 		}
-		// computer won
 		else {
-			out << "You have been beaten by Scrabble Sleuth." << std::endl;
+			out << "You have been beaten by Halfred." << std::endl;
 		}
 		return 0;
 	}

@@ -2,12 +2,12 @@
 #include <iostream>
 #include <string>
 
-#include <scrabble_sleuth.hpp>
+#include <halfred.hpp>
 
-using namespace scrabble_sleuth;
+using namespace halfred;
 
 void print_usage(std::ostream& out = std::cout) {
-	out << "Usage: ./scrabble_sleuth -l letter_scores.txt -w valid_words.txt [-n 16] [-v]" << std::endl;
+	out << "Usage: ./halfred -l letter_scores.txt -w valid_words.txt [-n 16] [-v]" << std::endl;
 }
 
 std::string get_arg(const int argc, char** argv, const std::string name) {
@@ -53,5 +53,5 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	return play_scrabble(letter_scores_path, valid_words_path, board_dimension, verbose);
+	return play_game(letter_scores_path, valid_words_path, board_dimension, verbose);
 }
