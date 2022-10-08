@@ -560,7 +560,7 @@ namespace halfred {
 		return word;
 	}
 
-	int play_game(std::string letter_scores_path, std::string valid_words_path, size_type board_dimension, bool verbose = false, std::istream& in = std::cin, std::ostream& out = std::cout) {
+	int play_game(std::string valid_words_path, std::string letter_scores_path = "", size_type board_dimension = 16, bool verbose = false, std::istream& in = std::cin, std::ostream& out = std::cout) {
 		std::ifstream valid_words_file = defensively_open(valid_words_path);
 		std::vector<std::string> valid_words{};
 		std::string word;

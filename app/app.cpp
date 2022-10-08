@@ -1,57 +1,34 @@
 #include <algorithm>
 #include <iostream>
 #include <string>
+#include <unistd.h>
+
+#include <boost/program_options.hpp>
 
 #include <halfred.hpp>
 
 using namespace halfred;
-
-void print_usage(std::ostream& out = std::cout) {
-	out << "Usage: ./halfred -l letter_scores.txt -w valid_words.txt [-n 16] [-v]" << std::endl;
-}
-
-std::string get_arg(const int argc, char** argv, const std::string name) {
-	char** iter = std::find(argv, argv + argc, name);
-	if (++iter < argv + argc) {
-		return {*iter};
-	}
-	// not found or found as last argument (and therefore no value was given)
-	else {
-		return {""};
-	}
-}
-
-bool get_flag(const int argc, char** argv, const std::string name) {
-	return std::find(argv, argv + argc, name) < argv + argc;
-}
+namespace boost_opts = boost::program_options;
 
 int main(int argc, char* argv[]) {
-	const std::string letter_scores_path = get_arg(argc, argv, "-l");
-	const std::string valid_words_path = get_arg(argc, argv, "-w");
-	const std::string board_dimension_str = get_arg(argc, argv, "-n");
-	const bool verbose = get_flag(argc, argv, "-v");
-
-	int board_dimension;
-	if (board_dimension_str.empty()) {
-		board_dimension = 16;
-	}
-	else {
-		try {
-			board_dimension = std::stoi(board_dimension_str);
-			if (board_dimension < 1) {
-				print_usage();
-				return 1;
-			}
-		}
-		catch (...) {
-			print_usage();
-			return 1;
-		}
-	}
-	if (valid_words_path.empty()) {
-		print_usage();
+	// parse command-line arguments
+	boost_opts::positional_options_description allowed_pos_opts;
+	allowed_pos_opts.add("valid_words_path", 1);
+	boost_opts::options_description allowed_opts{"Accelerable Gammage"};
+	allowed_opts.add_options()
+		("valid_words_path,w", boost_opts::value<std::string>()->required(), "Path of the text file containing words considered valid. May instead be given as the first positional argument. [required]")
+		("letter_scores_path,l", boost_opts::value<std::string>()->default_value(""), "Path of the text file containing the score to be given for each letter. If unspecified, letter scores will be generated automatically using the list of valid words. [optional]")
+		("board_dimension,n", boost_opts::value<int>()->default_value(16), "The side length the square board should have. [optional]")
+		("verbose,v", boost_opts::bool_switch(), "Display Hal's (the computer's) available letters as well as your own each turn.")
+		("help,h", boost_opts::bool_switch(), "Print help message and exit.Overrides all other options.")
+	;
+	boost_opts::variables_map opt_vals;
+	boost_opts::store(boost_opts::command_line_parser(argc, argv).options(allowed_opts).positional(allowed_pos_opts).run(), opt_vals);
+	if (opt_vals["help"].as<bool>()) {
+		std::cout << allowed_opts << std::endl;
 		return 1;
 	}
+	boost_opts::notify(opt_vals);
 
-	return play_game(letter_scores_path, valid_words_path, board_dimension, verbose);
+	return play_game(opt_vals["valid_words_path"].as<std::string>(), opt_vals["letter_scores_path"].as<std::string>(), opt_vals["board_dimension"].as<int>(), opt_vals["verbose"].as<bool>());
 }
