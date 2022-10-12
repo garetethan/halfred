@@ -33,16 +33,23 @@ namespace halfred {
 		return input;
 	}
 
+	char lower(const char up) {
+		return static_cast<char>(std::tolower(static_cast<unsigned char>(up)));
+	}
+
+	char upper(const char lo) {
+		return static_cast<char>(std::toupper(static_cast<unsigned char>(lo)));
+	}
+
 	class Game {
 		public:
 
 		static constexpr unsigned short lowercase_offset = 97;
-		static constexpr unsigned short uppercase_offset = 65;
 		static constexpr size_type letter_space_size = 26;
 		static constexpr size_type available_letter_sum = 8;
 		static constexpr char empty = '_';
 		static constexpr char wild = '*';
-		static const std::regex valid_location;
+		static const std::regex valid_location_pattern;
 
 		struct play {
 			size_type row;
@@ -200,7 +207,7 @@ namespace halfred {
 				out << std::setw(2) << std::left << row_i + 1;
 				out << "|";
 				for (const char& ch : board_.at(row_i)) {
-					out << ch << "|";
+					out << upper(ch) << "|";
 				}
 				out << std::setw(2) << std::right << row_i + 1 << std::endl;
 			}
@@ -298,17 +305,14 @@ namespace halfred {
 		}
 
 		play parse_location(std::string location) {
-			play p{0, 0, true, "to be determined", -1};
+			// Purposefully invalid row value.
+			play p{board_dimension_ + 1, 0, true, "to be determined", -1};
 			std::smatch location_match{};
-			if (regex_match(location, location_match, valid_location)) {
-				try {
-					p.row = std::stoi(location_match[1].str()) - 1;
-				}
-				catch (...) {
-					return p;
-				}
-				p.col = letter_to_index(location_match[2].str().front());
-				p.across = location_match[3].str().front() == 'a';
+			if (regex_match(location, location_match, valid_location_pattern)) {
+				// Has no reason to throw, since regex ensures it is just digits.
+				p.row = std::stoi(location_match[1].str()) - 1;
+				p.col = letter_to_index(lower(location_match[2].str().front()));
+				p.across = lower(location_match[3].str().front()) == 'a';
 			}
 			return p;
 		}
@@ -396,6 +400,7 @@ namespace halfred {
 			p.score = 0;
 			std::array<unsigned int, letter_space_size + 1> tiles_used{};
 
+			// if word is up against another word in the same dimension
 			if ((p.across
 				&& ((p.col > 0 && board_.at(p.row).at(p.col - 1) != empty)
 				|| (p.col + p.word.size() < board_dimension_ && board_.at(p.row).at(p.col + p.word.size()) != empty)))
@@ -411,9 +416,11 @@ namespace halfred {
 			for (unsigned int word_i = 0; word_i < p.word.size(); ++word_i, p.across ? ++col_i : ++row_i) {
 				size_type letter_as_index = letter_to_index(p.word.at(word_i));
 				try {
+					// The cell already has the required letter.
 					if (board_.at(row_i).at(col_i) == p.word.at(word_i)) {
 						p.score += letter_scores_.at(letter_as_index);
 					}
+					// The cell is empty. Let's see if we can fill it.
 					else if (board_.at(row_i).at(col_i) == empty) {
 						if (available_letter_counts.at(letter_as_index) > tiles_used.at(letter_as_index)) {
 							++tiles_used.at(letter_as_index);
@@ -422,7 +429,7 @@ namespace halfred {
 						// can we use a blank tile?
 						else if (available_letter_counts.back() > tiles_used.back()) {
 							++tiles_used.back();
-							// no score awarded for use of a blank tile
+							// No score is awarded for use of a blank tile.
 						}
 						else {
 							p.score = -1;
@@ -480,11 +487,13 @@ namespace halfred {
 							}
 						}
 					}
+					// The cell is already filled with a conflicting letter.
 					else {
 						p.score = -1;
 						return tiles_used;
 					}
 				}
+				// Some part of the word would be beyond the board edges.
 				catch (std::out_of_range) {
 					p.score = -1;
 					return tiles_used;
@@ -500,7 +509,7 @@ namespace halfred {
 		std::stringstream& output_column_indexes(std::stringstream& out) const {
 			out << std::string(2, ' ') << '|';
 			for (size_type col = 0; col < board_dimension_; col++) {
-				out << static_cast<char>(col + uppercase_offset) << '|';
+				out << upper(index_to_letter(col)) << '|';
 			}
 			out << std::string(2, ' ') << std::endl;
 			return out;
@@ -522,7 +531,7 @@ namespace halfred {
 
 		play get_location(std::istream& in = std::cin, std::ostream& out = std::cout) {
 			play p = parse_location(get_input("Where do you want to play the word?", in, out));
-			if (p.row > board_dimension_ || p.col > board_dimension_) {
+			if (p.row >= board_dimension_ || p.col >= board_dimension_) {
 				out << "Invalid location. Input the row integer (1-indexed), column letter (lowercase), and direction letter (either 'a' for 'across' or 'd' for 'down') without any separating characters. For example: 11gd" << std::endl;
 				return get_location(in, out);
 			}
@@ -533,7 +542,7 @@ namespace halfred {
 		static char index_to_letter(size_type ind);
 	};
 
-	const std::regex Game::valid_location{"(\\d+)([a-z])([ad])"};
+	const std::regex Game::valid_location_pattern{"^(\\d+)([A-Za-z])([ADad])$"};
 
 	size_type Game::letter_to_index(char le) {
 		if (le == '*') {
@@ -551,7 +560,7 @@ namespace halfred {
 
 	std::string Game::clean_word(std::string word) {
 		for (char& ch : word) {
-			ch = std::tolower(static_cast<unsigned char>(ch));
+			ch = lower(ch);
 			// letter_to_index assumes the char is lowercase ASCII, so underflow may occur here
 			if (Game::letter_to_index(ch) >= Game::letter_space_size) {
 				return {""};
