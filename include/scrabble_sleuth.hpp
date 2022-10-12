@@ -7,6 +7,7 @@
 #include <iostream>
 #include <iterator>
 #include <map>
+#include <numeric>
 #include <random>
 #include <regex>
 #include <stdexcept>
