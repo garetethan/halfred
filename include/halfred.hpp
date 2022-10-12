@@ -162,7 +162,7 @@ namespace halfred {
 			draw_letters(hal_available_letter_counts_, std::accumulate(hal_letters_used.begin(), hal_letters_used.end(), 0));
 
 			// Check if game is over.
-			if (is_board_cramped()) {
+			if (board_occupied_count() > board_dimension_ * board_dimension_ >> 1) {
 				out << "More than half the spaces on the board have been filled, so the game is over." << std::endl;
 				return false;
 			}
@@ -170,16 +170,13 @@ namespace halfred {
 			return true;
 		}
 
-		bool is_board_cramped() {
-			size_type empty_count = 0;
+		// Return the number of occupied cells on the board.
+		bool board_occupied_count() {
+			size_type count = 0;
 			for (const std::vector<char>& row : board_) {
-				for (const char& ch : row) {
-					if (ch == empty) {
-						++empty_count;
-					}
-				}
+				count += std::count_if(row.begin(), row.end(), [](auto c){return c != empty;});
 			}
-			return empty_count > board_dimension_ * board_dimension_;
+			return count;
 		}
 
 		std::string game_state() const {
@@ -317,9 +314,7 @@ namespace halfred {
 		}
 
 		// Get a location from the player that could be valid (depending on the board dimension).
-		play parse_location(std::string location) {
-			// Purposefully invalid row value.
-			play p{board_dimension_ + 1, 0, true, "to be determined", -1};
+		void parse_location(play& p, std::string location) {
 			std::smatch location_match{};
 			if (regex_match(location, location_match, valid_location_pattern)) {
 				// Has no reason to throw, since regex ensures it is just digits.
@@ -327,7 +322,10 @@ namespace halfred {
 				p.col = letter_to_index(lower(location_match[2].str().front()));
 				p.across = lower(location_match[3].str().front()) == 'a';
 			}
-			return p;
+			else {
+				// Purposefully invalid value.
+				p.row = board_dimension_;
+			}
 		}
 
 		// Find the best valid play anywhere on the board.
@@ -429,6 +427,7 @@ namespace halfred {
 
 			size_type row_i = p.row;
 			size_type col_i = p.col;
+			unsigned int cross_word_count = 0;
 			for (unsigned int word_i = 0; word_i < p.word.size(); ++word_i, p.across ? ++col_i : ++row_i) {
 				size_type letter_as_index = letter_to_index(p.word.at(word_i));
 				try {
@@ -479,6 +478,7 @@ namespace halfred {
 								p.score = -1;
 								return letters_used;
 							}
+							++cross_word_count;
 						}
 						// The word is spelled downwards.
 						else if (!p.across
@@ -503,6 +503,7 @@ namespace halfred {
 								p.score = -1;
 								return letters_used;
 							}
+						++cross_word_count;
 						}
 					}
 					// The cell is already filled with a conflicting letter.
@@ -519,6 +520,11 @@ namespace halfred {
 			}
 			// If the word specified is already on the board in full.
 			if (std::none_of(letters_used.begin(), letters_used.end(), [](auto k){return k > 0;})) {
+				p.score = -1;
+				return letters_used;
+			}
+			// If a play has no crosswords and there are already words on the board, the play being evaluated is not connected to any words already on the board, and is therefore invalid.
+			if (cross_word_count == 0 && board_occupied_count() > 1) {
 				p.score = -1;
 				return letters_used;
 			}
