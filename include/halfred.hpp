@@ -266,7 +266,8 @@ namespace halfred {
 		std::array<float, letter_space_size + 1> letter_weights_;
 		std::random_device random_dev_;
 		std::mt19937 random_bit_gen_;
-		std::uniform_real_distribution<float> random_dist_;
+		std::uniform_real_distribution<float> random_letter_dist_;
+		std::uniform_int_distribution<unsigned int> random_location_dist_;
 
 		// + 1 is for blank tiles.
 		std::array<unsigned int, letter_space_size + 1> person_available_letter_counts_;
@@ -285,7 +286,7 @@ namespace halfred {
 			// Let blank tiles have a weight equal to the average of all letters.
 			letter_weights_.back() = letter_weights_.at(letter_space_size - 1) + (letter_weights_.at(letter_space_size - 1) / letter_space_size);
 			random_bit_gen_ = std::mt19937{random_dev_()};
-			random_dist_ = std::uniform_real_distribution<float>{0.f, tile_weights_.back()};
+			random_letter_dist_ = std::uniform_real_distribution<float>{0.f, letter_weights_.back()};
 			draw_letters(person_available_letter_counts_, available_letter_sum);
 			draw_letters(hal_available_letter_counts_, available_letter_sum);
 
@@ -296,15 +297,22 @@ namespace halfred {
 			for (size_type row_i = 0; row_i < board_dimension_; ++row_i) {
 				board_.emplace_back(board_dimension_, empty_copy);
 			}
+			random_location_dist_ = std::uniform_int_distribution<unsigned int>{1, board_dimension_ - 1};
+			// Set one cell on the board to a random letter. The first play must connect to this letter.
+			board_.at(random_location_dist_(random_bit_gen_)).at(random_location_dist_(random_bit_gen_)) = index_to_letter(random_letter_as_index());
 
 			person_score_ = 0;
 			hal_score_ = 0;
 		}
 
+		unsigned int random_letter_as_index() {
+			return std::upper_bound(letter_weights_.begin(), letter_weights_.end(), random_letter_dist_(random_bit_gen_)) - letter_weights_.begin();
+		}
+
 		// Randomly select tiles to be added to available letters.
 		void draw_letters(std::array<unsigned int, letter_space_size + 1>& counts, const unsigned int n) {
 			for (unsigned int i = 0; i < n; ++i) {
-				++counts.at(std::upper_bound(letter_weights_.begin(), letter_weights_.end(), random_dist_(random_bit_gen_)) - letter_weights_.begin());
+				++counts.at(random_letter_as_index());
 			}
 		}
 
@@ -512,7 +520,9 @@ namespace halfred {
 			// If the word specified is already on the board in full.
 			if (std::none_of(letters_used.begin(), letters_used.end(), [](auto k){return k > 0;})) {
 				p.score = -1;
+				return letters_used;
 			}
+			// The only happy exit.
 			return letters_used;
 		}
 
