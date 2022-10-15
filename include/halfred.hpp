@@ -231,6 +231,22 @@ namespace halfred {
 			return verbose_;
 		}
 
+		std::vector<std::vector<char>> board() const noexcept {
+			return board_;
+		}
+
+		std::array<float, letter_space_size + 1> letter_weights() const noexcept {
+			return letter_weights_;
+		}
+
+		letter_tally person_available_letters() const noexcept {
+			return person_available_letter_counts_;
+		}
+
+		letter_tally computer_available_letters() const noexcept {
+			return hal_available_letter_counts_;
+		}
+
 		unsigned int person_score() const noexcept {
 			return person_score_;
 		}
