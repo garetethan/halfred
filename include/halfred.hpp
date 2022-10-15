@@ -202,13 +202,13 @@ namespace halfred {
 			output_column_indexes(out);
 			out << "Your tiles: ";
 			for (unsigned int i = 0; i < letter_space_size + 1; ++i) {
-					out << std::string(person_available_letter_counts_.at(i), index_to_letter(i));
+					out << std::string(person_available_letter_counts_.at(i), upper(index_to_letter(i)));
 			}
 			out << std::endl;
 			if (verbose_) {
 				out << "Halfred's tiles: ";
 				for (unsigned int i = 0; i < letter_space_size + 1; ++i) {
-					out << std::string(hal_available_letter_counts_.at(i), index_to_letter(i));
+					out << std::string(hal_available_letter_counts_.at(i), upper(index_to_letter(i)));
 				}
 			}
 			out << std::endl << std::endl;
