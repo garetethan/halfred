@@ -44,46 +44,43 @@ namespace halfred {
 	class Game {
 		public:
 
-		static constexpr unsigned short lowercase_offset = 97;
 		static constexpr size_type letter_space_size = 26;
-		static constexpr size_type available_letter_sum = 8;
-		static constexpr char empty = '_';
-		static constexpr char wild = '*';
-		static constexpr size_type max_board_dimension = 24;
-		static const std::regex valid_location_pattern;
-
+		using letter_tally = std::array<unsigned int, letter_space_size + 1>;
 		struct play {
 			size_type row;
 			size_type col;
 			bool across;
 			std::string word;
 			int score;
+			letter_tally letters_used;
 		};
 
-		using play_with_used = std::pair<play, std::array<unsigned int, letter_space_size + 1>>;
+		static constexpr unsigned short lowercase_offset = 97;
+		static constexpr size_type available_letter_sum = 8;
+		static constexpr char empty = '_';
+		static constexpr char wild = '*';
+		// This limit has been chosen because it is the greatest multiple of 8 less than the number of letters in the English alphabet.
+		static constexpr size_type max_board_dimension = 24;
+		static const play null_play;
+		static const std::regex valid_location_pattern;
 
+		// Attempting to use a default initialized Game causes undefined behaviour.
 		Game() : verbose_(false) {}
 
-		Game(std::array<unsigned int, letter_space_size> letter_scores, std::vector<std::string> valid_words, size_type board_dimension, bool verbose = false) :
+		Game(std::vector<std::string> valid_words, letter_tally letter_scores, size_type board_dimension, bool verbose) :
 				letter_scores_(letter_scores),
 				valid_words_(valid_words),
 				board_dimension_(board_dimension),
-				// Value initialize arrays so they are filled with zeros.
-				person_available_letter_counts_(),
-				hal_available_letter_counts_(),
 				verbose_(verbose) {
 			init();
 		}
 
-		Game(std::vector<std::string> valid_words, size_type board_dimension, bool verbose = false) :
-				letter_scores_(),
+		Game(std::vector<std::string> valid_words, size_type board_dimension, bool verbose) :
 				valid_words_(valid_words),
 				board_dimension_(board_dimension),
-				// Value initialize arrays so they are filled with zeros.
-				person_available_letter_counts_(),
-				hal_available_letter_counts_(),
 				verbose_(verbose) {
-			std::array<unsigned int, letter_space_size> letter_counts{};
+
+			letter_tally letter_counts{};
 			unsigned int total_letters = 0;
 			for (const std::string& word : valid_words_) {
 				for (const char& le : word) {
@@ -92,9 +89,10 @@ namespace halfred {
 				}
 			}
 
-			for (unsigned int i = 0; i < letter_scores_.size(); ++i) {
+			for (unsigned int i = 0; i < letter_space_size; ++i) {
 				letter_scores_.at(i) = std::max(total_letters / letter_counts.at(i), 1U);
 			}
+			letter_scores_.back() = 0.f;
 
 			init();
 		}
@@ -103,63 +101,53 @@ namespace halfred {
 		Game(Game&& other) = default;
 
 		Game& operator=(const Game& other) {
-			valid_words_ = other.valid_words();
-			letter_scores_ = other.letter_scores();
-			board_dimension_ = other.board_dimension();
-			verbose_ = other.verbose();
-			init();
+			valid_words_ = other.valid_words_;
+			letter_scores_ = other.letter_scores_;
+			board_dimension_ = other.board_dimension_;
+			verbose_ = other.verbose_;
+			board_ = other.board_;
+			letter_weights_ = other.letter_weights_;
+			person_available_letter_counts_ = other.person_available_letter_counts_;
+			hal_available_letter_counts_ = other.hal_available_letter_counts_;
+			person_score_ = other.person_score_;
+			hal_score_ = other.hal_score_;
+			random_bit_gen_ = std::mt19937(random_dev_());
+			random_letter_dist_ = other.random_letter_dist_;
 			return *this;
 		}
 
 		Game& operator=(Game&& other) {
-			valid_words_ = other.valid_words();
-			letter_scores_ = other.letter_scores();
-			board_dimension_ = other.board_dimension();
-			verbose_ = other.verbose();
-			init();
+			swap(*this, other);
 			return *this;
 		}
 
 		bool turn(std::istream& in = std::cin, std::ostream& out = std::cout) {
 			// Person's turn.
-			std::array<unsigned int, letter_space_size + 1> person_letters_used;
 			std::string person_word;
-			play person_play{0, 0, true, "to be determined", -1};
+			play person_play = null_play;
 			while (person_play.score < 0) {
-				person_word = get_word(in, out);
+				get_word(person_play, in, out);
 				// An underscore means the person is giving up on spelling any more words, ending the game.
-				if (person_word == "_") {
+				if (person_play.word == "_") {
 					return false;
 				}
-				person_play = get_location(in, out);
-				person_play.word = person_word;
-				person_letters_used = evaluate_play(person_available_letter_counts_, person_play);
+				get_location(person_play, in, out);
+				std::string possible_error = evaluate_play(person_play, person_available_letter_counts_);
 				if (person_play.score < 0) {
-					out << "That word cannot be played there. Try again." << std::endl;
+					out << "That word cannot be played there. " << possible_error << std::endl;
+					person_play = null_play;
 				}
 			}
-			for (size_type i = 0; i < letter_space_size + 1; ++i) {
-				person_available_letter_counts_.at(i) -= person_letters_used.at(i);
-			}
-			person_score_ += person_play.score;
-			apply_play_to_board(person_play);
-			draw_letters(person_available_letter_counts_, std::accumulate(person_letters_used.begin(), person_letters_used.end(), 0));
+			apply_play(person_play, person_available_letter_counts_, person_score_);
 
 			// Halfred's turn.
-			auto hal_choice = best_overall();
-			play hal_play = hal_choice.first;
-			auto hal_letters_used = hal_choice.second;
+			play hal_play = best_overall();
 			if (hal_play.score < 1) {
 				out << "Halfred does not see any possible plays, so the game is over." << std::endl;
 				return false;
 			}
 			out << "Halfred played \"" << hal_play.word << "\" at " << hal_play.row + 1 << index_to_letter(hal_play.col) << (hal_play.across ? 'a' : 'd') << " for " << hal_play.score << " points." << std::endl;
-			for (size_type i = 0; i < letter_space_size + 1; ++i) {
-				hal_available_letter_counts_.at(i) -= hal_letters_used.at(i);
-			}
-			apply_play_to_board(hal_play);
-			hal_score_ += hal_play.score;
-			draw_letters(hal_available_letter_counts_, std::accumulate(hal_letters_used.begin(), hal_letters_used.end(), 0));
+			apply_play(hal_play, hal_available_letter_counts_, hal_score_);
 
 			// Check if game is over.
 			if (board_occupied_count() > board_dimension_ * board_dimension_ >> 1) {
@@ -174,7 +162,7 @@ namespace halfred {
 		bool board_occupied_count() {
 			size_type count = 0;
 			for (const std::vector<char>& row : board_) {
-				count += std::count_if(row.begin(), row.end(), [](auto c){return c != empty;});
+				count += std::count_if(row.begin(), row.end(), [](char c){return c != empty;});
 			}
 			return count;
 		}
@@ -227,12 +215,12 @@ namespace halfred {
 			return out.str();
 		}
 
-		std::array<unsigned int, letter_space_size> letter_scores() const noexcept {
-			return letter_scores_;
-		}
-
 		std::vector<std::string> valid_words() const noexcept {
 			return valid_words_;
+		}
+
+		letter_tally letter_scores() const noexcept {
+			return letter_scores_;
 		}
 
 		size_type board_dimension() const noexcept {
@@ -251,55 +239,66 @@ namespace halfred {
 			return hal_score_;
 		}
 
+		friend void swap(Game& first, Game& second);
 		static std::string clean_word(std::string word);
 
-		private:
+		protected:
 		std::vector<std::string> valid_words_;
-		std::array<unsigned int, letter_space_size> letter_scores_;
-		std::vector<std::vector<char>> board_;
+		letter_tally letter_scores_;
 		size_type board_dimension_;
 		bool verbose_;
 
+		std::vector<std::vector<char>> board_;
 		std::array<float, letter_space_size + 1> letter_weights_;
 		std::random_device random_dev_;
 		std::mt19937 random_bit_gen_;
 		std::uniform_real_distribution<float> random_letter_dist_;
-		std::uniform_int_distribution<unsigned int> random_location_dist_;
 
 		// + 1 is for blank tiles.
-		std::array<unsigned int, letter_space_size + 1> person_available_letter_counts_;
-		std::array<unsigned int, letter_space_size + 1> hal_available_letter_counts_;
+		letter_tally person_available_letter_counts_;
+		letter_tally hal_available_letter_counts_;
 		unsigned int person_score_;
 		unsigned int hal_score_;
 
+		private:
 		void init() {
-			// This limit has been chosen because it is the greatest multiple of 8 less than the number of letters in the English alphabet.
 			assert(board_dimension_ <= max_board_dimension);
+
+			std::sort(valid_words_.begin(), valid_words_.end());
+
+			for (size_type i = 0; i < letter_space_size; ++i) {
+				person_available_letter_counts_.at(i) = 0;
+				hal_available_letter_counts_.at(i) = 0;
+			}
 
 			letter_weights_.front() = 1.f / letter_scores_.front();
 			for (size_type i = 1; i < letter_space_size; ++i) {
 				letter_weights_.at(i) = letter_weights_.at(i - 1) + (1.f / letter_scores_.at(i));
 			}
 			// Let blank tiles have a weight equal to the average of all letters.
-			letter_weights_.back() = letter_weights_.at(letter_space_size - 1) + (letter_weights_.at(letter_space_size - 1) / letter_space_size);
-			random_bit_gen_ = std::mt19937{random_dev_()};
+			float z_weight = letter_weights_.at(letter_space_size - 1);
+			letter_weights_.back() = z_weight + (z_weight / letter_space_size);
+			random_bit_gen_ = std::mt19937(random_dev_());
 			random_letter_dist_ = std::uniform_real_distribution<float>{0.f, letter_weights_.back()};
+
+			person_score_ = 0;
+			hal_score_ = 0;
 			draw_letters(person_available_letter_counts_, available_letter_sum);
 			draw_letters(hal_available_letter_counts_, available_letter_sum);
-
-			std::sort(valid_words_.begin(), valid_words_.end());
 
 			board_.reserve(board_dimension_);
 			const char empty_copy = empty;
 			for (size_type row_i = 0; row_i < board_dimension_; ++row_i) {
 				board_.emplace_back(board_dimension_, empty_copy);
 			}
-			random_location_dist_ = std::uniform_int_distribution<unsigned int>{1, board_dimension_ - 1};
-			// Set one cell on the board to a random letter. The first play must connect to this letter.
-			board_.at(random_location_dist_(random_bit_gen_)).at(random_location_dist_(random_bit_gen_)) = index_to_letter(random_letter_as_index());
 
-			person_score_ = 0;
-			hal_score_ = 0;
+			// Set one cell on the board to a random letter. The first play must connect to this letter.
+			char random_letter = wild;
+			while (random_letter == wild) {
+				random_letter = index_to_letter(random_letter_as_index());
+			}
+			std::uniform_int_distribution<unsigned int> random_location_dist{1, board_dimension_ - 1};
+			board_.at(random_location_dist(random_bit_gen_)).at(random_location_dist(random_bit_gen_)) = random_letter;
 		}
 
 		unsigned int random_letter_as_index() {
@@ -307,7 +306,7 @@ namespace halfred {
 		}
 
 		// Randomly select tiles to be added to available letters.
-		void draw_letters(std::array<unsigned int, letter_space_size + 1>& counts, const unsigned int n) {
+		void draw_letters(letter_tally& counts, const unsigned int n) {
 			for (unsigned int i = 0; i < n; ++i) {
 				++counts.at(random_letter_as_index());
 			}
@@ -329,17 +328,17 @@ namespace halfred {
 		}
 
 		// Find the best valid play anywhere on the board.
-		play_with_used best_overall() {
-			play null_play{0, 0, true, "to be determined", -1};
-			std::array<unsigned int, letter_space_size + 1> null_array;
-			auto best_option = play_with_used{null_play, null_array};
+		play best_overall() {
+			play best_option = null_play;
 			for (size_type row_i = 0; row_i < board_dimension_; ++row_i) {
-				auto option = best_in_row(row_i, true);
-				if (option.first.score > best_option.first.score) {
+				// Best in row.
+				play option = best_in_row(row_i, true);
+				if (option.score > best_option.score) {
 					best_option = option;
 				}
+				// Best in col.
 				option = best_in_row(row_i, false);
-				if (option.first.score > best_option.first.score) {
+				if (option.score > best_option.score) {
 					best_option = option;
 				}
 			}
@@ -348,7 +347,7 @@ namespace halfred {
 
 		// Determine and return the best possible valid play in a row.
 		// is_row = false for a column.
-		play_with_used best_in_row(size_type row_index, bool is_row = true) {
+		play best_in_row(size_type row_index, bool is_row = true) {
 			std::vector<char> board_row;
 			if (is_row) {
 				board_row = board_.at(row_index);
@@ -366,10 +365,7 @@ namespace halfred {
 				}
 			}
 
-			play null_play{0, 0, true, "to be determined", -1};
-			std::array<unsigned int, letter_space_size + 1> null_array;
-			auto best_option = play_with_used{null_play, null_array};
-
+			play best_option = null_play;
 			for (const std::string& word : valid_words_) {
 				for (const auto& index_letter : row_letters) {
 					std::string::size_type pos = word.find(index_letter.second);
@@ -377,16 +373,19 @@ namespace halfred {
 						auto word_start = board_row.begin() + index_letter.first - pos;
 						auto word_end = word_start + word.size();
 						if (word_start >= board_row.begin() && word_start < board_row.end() && word_end <= board_row.end()) {
-							play curr_play{};
+							play p = null_play;
+							p.word = word;
 							if (is_row) {
-								curr_play = play{row_index, index_letter.first, is_row, word, -1};
+								p.row = row_index;
+								p.col = index_letter.first;
 							}
 							else {
-								curr_play = play{index_letter.first, row_index, is_row, word, -1};
+								p.row = index_letter.first;
+								p.col = row_index;
 							}
-							auto letters_used = evaluate_play(hal_available_letter_counts_, curr_play);
-							if (curr_play.score > best_option.first.score) {
-								best_option = play_with_used{curr_play, letters_used};
+							evaluate_play(p, hal_available_letter_counts_);
+							if (p.score > best_option.score) {
+								best_option = p;
 							}
 						}
 						pos = word.find(index_letter.second, pos + 1);
@@ -396,25 +395,28 @@ namespace halfred {
 			return best_option;
 		}
 
-		void apply_play_to_board(play p) {
+		void apply_play(play& p, letter_tally& available_letter_counts, unsigned int& score) {
+			for (size_type i = 0; i < letter_space_size + 1; ++i) {
+				available_letter_counts.at(i) -= p.letters_used.at(i);
+			}
 			if (p.across) {
 				for (size_type pos = 0; pos < p.word.size(); ++pos) {
 					board_.at(p.row).at(p.col + pos) = p.word.at(pos);
 				}
 			}
-			// If p.down.
+			// If played vertically.
 			else {
 				for (size_type pos = 0; pos < p.word.size(); ++pos) {
 					board_.at(p.row + pos).at(p.col) = p.word.at(pos);
 				}
 			}
+			score += p.score;
+			draw_letters(available_letter_counts, std::accumulate(p.letters_used.begin(), p.letters_used.end(), 0));
 		}
 
-		std::array<unsigned int, letter_space_size + 1> evaluate_play(const std::array<unsigned int, letter_space_size + 1>& available_letter_counts, play& p) {
+		std::string evaluate_play(play& p, const letter_tally& available_letter_counts) {
 			p.score = 0;
-			std::array<unsigned int, letter_space_size + 1> letters_used{};
 
-			// If word is up against another word in the same dimension.
 			if ((p.across
 				&& ((p.col > 0 && board_.at(p.row).at(p.col - 1) != empty)
 				|| (p.col + p.word.size() < board_dimension_ && board_.at(p.row).at(p.col + p.word.size()) != empty)))
@@ -422,7 +424,7 @@ namespace halfred {
 				&& ((p.row > 0 && board_.at(p.row - 1).at(p.col) != empty)
 				|| (p.row + p.word.size() < board_dimension_ && board_.at(p.row + p.word.size()).at(p.col) != empty)))) {
 				p.score = -1;
-				return letters_used;
+				return "It would be right up against another word in the same dimension, forming a longer possible word with the other word. If this longer word is valid and you want to play it, then enter it.";
 			}
 
 			size_type row_i = p.row;
@@ -438,18 +440,18 @@ namespace halfred {
 					// If the cell is empty, let's see if we can fill it.
 					else if (board_.at(row_i).at(col_i) == empty) {
 						// Do we have the required letter?
-						if (available_letter_counts.at(letter_as_index) > letters_used.at(letter_as_index)) {
-							++letters_used.at(letter_as_index);
+						if (available_letter_counts.at(letter_as_index) > p.letters_used.at(letter_as_index)) {
+							++p.letters_used.at(letter_as_index);
 							p.score += letter_scores_.at(letter_as_index);
 						}
 						// Can we use a blank tile?
-						else if (available_letter_counts.back() > letters_used.back()) {
-							++letters_used.back();
-							// No score is awarded for use of a blank tile.
+						else if (available_letter_counts.back() > p.letters_used.back()) {
+							++p.letters_used.back();
+							p.score += letter_scores_.back();
 						}
 						else {
 							p.score = -1;
-							return letters_used;
+							return std::string{"You do not have enough "} + p.word.at(word_i) + "'s to play it there.";
 						}
 
 						// Check for invalid crosswords.
@@ -476,7 +478,7 @@ namespace halfred {
 							}
 							else {
 								p.score = -1;
-								return letters_used;
+								return std::string{"Doing so would simultaneously spell the invalid word \""} + cross_word + "\".";
 							}
 							++cross_word_count;
 						}
@@ -501,7 +503,7 @@ namespace halfred {
 							}
 							else {
 								p.score = -1;
-								return letters_used;
+								return std::string{"Doing so would simultaneously spell the invalid word \""} + cross_word + "\".";
 							}
 						++cross_word_count;
 						}
@@ -509,27 +511,25 @@ namespace halfred {
 					// The cell is already filled with a conflicting letter.
 					else {
 						p.score = -1;
-						return letters_used;
+						return std::string{"The board already has "} + board_.at(row_i).at(col_i) + " where you want to put " + p.word.at(word_i) + ".";
 					}
 				}
-				// Some part of the word would be beyond the board edges.
 				catch (std::out_of_range) {
 					p.score = -1;
-					return letters_used;
+					return "Some part of the word would be beyond the edges of the board.";
 				}
 			}
-			// If the word specified is already on the board in full.
-			if (std::none_of(letters_used.begin(), letters_used.end(), [](auto k){return k > 0;})) {
+			if (std::none_of(p.letters_used.begin(), p.letters_used.end(), [](auto k){return k > 0;})) {
 				p.score = -1;
-				return letters_used;
+				return "The word is already on the board in that position. You wouldn't be adding anything to it.";
 			}
 			// If a play has no crosswords and there are already words on the board, the play being evaluated is not connected to any words already on the board, and is therefore invalid.
 			if (cross_word_count == 0 && board_occupied_count() > 1) {
 				p.score = -1;
-				return letters_used;
+				return "It would not be touching any other words already on the board.";
 			}
 			// The only happy exit.
-			return letters_used;
+			return "";
 		}
 
 		std::stringstream& output_column_indexes(std::stringstream& out) const {
@@ -541,37 +541,36 @@ namespace halfred {
 			return out;
 		}
 
-		std::string get_word(std::istream& in = std::cin, std::ostream& out = std::cout) {
-			std::string word = get_input("What word do you want to play?", in, out);
+		void get_word(play& p, std::istream& in = std::cin, std::ostream& out = std::cout) {
+			p.word = get_input("What word do you want to play?", in, out);
 			// The person is giving up on spelling any more words.
-			if (word == "_") {
-				return word;
+			if (p.word == "_") {
+				return;
 			}
-			word = clean_word(word);
-			if (word.empty() || !std::binary_search(valid_words_.begin(), valid_words_.end(), word)) {
+			p.word = clean_word(p.word);
+			if (p.word.empty() || !std::binary_search(valid_words_.begin(), valid_words_.end(), p.word)) {
 				out << "Invalid word. Be sure to use only lowercase English letters. If you are unable to spell any more words, type \"_\" (an underscore) to end the game." << std::endl;
-				return get_word(in, out);
+				get_word(p, in, out);
 			}
-			return word;
 		}
 
-		play get_location(std::istream& in = std::cin, std::ostream& out = std::cout) {
-			play p = parse_location(get_input("Where do you want to play the word?", in, out));
+		void get_location(play& p, std::istream& in = std::cin, std::ostream& out = std::cout) {
+			parse_location(p, get_input("Where do you want to play the word?", in, out));
 			if (p.row >= board_dimension_ || p.col >= board_dimension_) {
 				out << "Invalid location. Input the row integer (1-indexed), column letter (lowercase), and direction letter (either 'a' for 'across' or 'd' for 'down') without any separating characters. For example: 11gd" << std::endl;
-				return get_location(in, out);
+				return get_location(p, in, out);
 			}
-			return p;
 		}
 
 		static size_type letter_to_index(char le);
 		static char index_to_letter(size_type ind);
 	};
 
+	const Game::play Game::null_play{0, 0, true, "", -1, Game::letter_tally{}};
 	const std::regex Game::valid_location_pattern{"^(\\d+)([A-Za-z])([ADad])$"};
 
 	size_type Game::letter_to_index(char le) {
-		if (le == '*') {
+		if (le == wild) {
 			return Game::letter_space_size;
 		}
 		return static_cast<size_type>(le) - Game::lowercase_offset;
@@ -579,9 +578,25 @@ namespace halfred {
 
 	char Game::index_to_letter(size_type ind) {
 		if (ind == Game::letter_space_size) {
-			return '*';
+			return wild;
 		}
 		return static_cast<char>(ind + Game::lowercase_offset);
+	}
+
+	void swap(Game& first, Game& second) {
+		std::swap(first.valid_words_, second.valid_words_);
+		std::swap(first.letter_scores_, second.letter_scores_);
+		std::swap(first.board_dimension_, second.board_dimension_);
+		std::swap(first.verbose_, second.verbose_);
+		std::swap(first.board_, second.board_);
+		std::swap(first.letter_weights_, second.letter_weights_);
+		std::swap(first.person_available_letter_counts_, second.person_available_letter_counts_);
+		std::swap(first.hal_available_letter_counts_, second.hal_available_letter_counts_);
+		std::swap(first.person_score_, second.person_score_);
+		std::swap(first.hal_score_, second.hal_score_);
+		// random_dev_ is omitted here because std::random_device is not swappable.
+		std::swap(first.random_bit_gen_, second.random_bit_gen_);
+		std::swap(first.random_letter_dist_, second.random_letter_dist_);
 	}
 
 	std::string Game::clean_word(std::string word) {
@@ -589,7 +604,7 @@ namespace halfred {
 			ch = lower(ch);
 			// letter_to_index assumes the char is lowercase ASCII, so underflow may occur here.
 			if (Game::letter_to_index(ch) >= Game::letter_space_size) {
-				return {""};
+				return "";
 			}
 		}
 		return word;
@@ -613,7 +628,7 @@ namespace halfred {
 		}
 		else {
 			std::ifstream letter_scores_file = defensively_open(letter_scores_path);
-			std::array<unsigned int, Game::letter_space_size> letter_scores;
+			Game::letter_tally letter_scores;
 			for (unsigned int& score : letter_scores) {
 				letter_scores_file >> score;
 				if (!letter_scores_file) {
@@ -621,7 +636,7 @@ namespace halfred {
 					return 1;
 				}
 			}
-			game = Game{letter_scores, valid_words, board_dimension, verbose};
+			game = Game{valid_words, letter_scores, board_dimension, verbose};
 		}
 
 		out << game.game_state();
