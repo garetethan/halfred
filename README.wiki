@@ -1,3 +1,19 @@
 = Accelerable Gammage =
+
+== Datasets ==
+I used Python scripts from a [https://github.com/excarnateSojourner/wiktionary different project of mine] to create the lists of valid words from [https://en.wiktionary.org/wiki/Wiktionary:Main_Page Wiktionary].
+
+=== Main ===
+<code>py deepCatFilter.py 220920/cats.csv wiktionary_main.txt -i 'English lemmas' 'English non-lemma forms' -e 'English misspellings' 'English letters' 'English obsolete terms' 'English abbreviations' 'English acronyms' 'English initialisms' 'English pseudo-acronyms' 'English derogatory terms' 'English offensive terms' 'English vulgarities' -v</code>
+
+From the generated list I then chose only words that consisted purely of upper- and lowercase ASCII letters (no spaces).
+
+=== Restricted ===
+<code>py deepCatFilter.py 220920/cats.csv wiktionary_restricted.txt -i 'English lemmas' 'English non-lemma forms' -e 'English nonstandard terms' 'English obsolete terms' 'English archiac terms' 'English dated terms' 'English rare terms' 'English shortenings' 'English proper nouns' 'English letters' 'English derogatory terms' 'English offensive terms' 'English vulgarities' -v</code>
+
+From the generated list I then chose only words that consisted purely of lowercase ASCII letters (no spaces).
+
+I wanted to also exclude slang terms, but I found that excluding <code>Category:English slang</code> excluded too many terms that were legitimate common words (like ''pen'' and ''goon''). I was also going to exclude <code>Category:English morphemes</code> which includes prefixes and suffixes, but it also includes prefixed and suffixed words (like ''unpin''), which I thought important to include. Prefixes, suffixes, and the like should all still be excluded, though, as on Wiktionary they are spelled with hyphens.
+
 == Name ==
 The name ''Halfred'' was chosen to honour [https://en.wikipedia.org/wiki/Alfred_Mosher_Butts Alfred Mosher Butts], the inventor of Scrabble, and in reference to [https://mspaintadventures.fandom.com/wiki/Lil_Hal Lil Hal], a character in [https://en.wikipedia.org/wiki/Homestuck Homestuck], a web comic.

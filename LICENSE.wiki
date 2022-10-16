@@ -1,0 +1,5 @@
+= License =
+
+The file [[data/wiktionary.txt]] is a derivative work of data from the [https://en.wiktionary.org/ English Wiktionary] (downloaded [https://dumps.wikimedia.org/ from Wikimedia Downloads]), and is therefore licensed under the [https://creativecommons.org/licenses/by-sa/3.0/ Creative Commons Attribution-ShareAlike 3.0 Unported License]. This data was created cooperatively by thousands of editors. Wiktionary has a [https://en.wiktionary.org/wiki/Special:ListUsers?editsOnly=1&creationSort=1&limit=50 complete list of them].
+
+All other files in this repository, including this license file, are licensed under the [https://creativecommons.org/publicdomain/zero/1.0/ CC0 1.0 Universal Public Domain Dedication].
