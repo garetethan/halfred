@@ -500,8 +500,8 @@ namespace halfred {
 						}
 						// The word is spelled downwards.
 						else if (!p.across
-							&& (col_i > 0 && board_.at(row_i).at(col_i - 1) != empty)
-							|| (col_i < board_dimension_ - 1 && board_.at(row_i).at(col_i + 1) != empty)) {
+							&& ((col_i > 0 && board_.at(row_i).at(col_i - 1) != empty)
+							|| (col_i < board_dimension_ - 1 && board_.at(row_i).at(col_i + 1) != empty))) {
 							size_type cross_word_start = col_i;
 							while (cross_word_start > 0 && board_.at(row_i).at(cross_word_start - 1) != empty) {
 								--cross_word_start;
