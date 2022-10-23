@@ -18,6 +18,23 @@
 namespace halfred {
 	using size_type = unsigned int;
 
+	class StreamHandler {
+		public:
+		StreamHandler(std::ios& stream) : stream_(stream), exceptions_(stream_.exceptions()), width_(stream_.width()) {
+			// Throw on error rather than setting error bits.
+			stream_.exceptions(std::ios::failbit | std::ios::badbit);
+		}
+		~StreamHandler() {
+			stream_.exceptions(exceptions_);
+			stream_.width(width_);
+		}
+
+		private:
+		std::ios& stream_;
+		std::ios::iostate exceptions_;
+		std::streamsize width_;
+	};
+
 	std::ifstream defensively_open(const std::string path) {
 		std::ifstream file_{path};
 		if (!file_.is_open()) {
@@ -122,6 +139,8 @@ namespace halfred {
 		}
 
 		bool turn(std::istream& in = std::cin, std::ostream& out = std::cout) {
+			StreamHandler{in};
+			StreamHandler{out};
 			// Person's turn.
 			std::string person_word;
 			play person_play = null_play;
@@ -627,7 +646,10 @@ namespace halfred {
 	}
 
 	int play_game(std::string valid_words_path, std::string letter_scores_path = "", size_type board_dimension = 16, bool verbose = false, std::istream& in = std::cin, std::ostream& out = std::cout) {
+		StreamHandler{in};
+		StreamHandler{out};
 		std::ifstream valid_words_file = defensively_open(valid_words_path);
+		StreamHandler{valid_words_file};
 		std::vector<std::string> valid_words{};
 		std::string word;
 		while (valid_words_file >> word) {
@@ -644,6 +666,7 @@ namespace halfred {
 		}
 		else {
 			std::ifstream letter_scores_file = defensively_open(letter_scores_path);
+			StreamHandler{letter_scores_file};
 			Game::letter_tally letter_scores;
 			for (unsigned int& score : letter_scores) {
 				letter_scores_file >> score;
