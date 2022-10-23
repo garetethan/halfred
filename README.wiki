@@ -4,12 +4,16 @@
 I used Python scripts from a [https://github.com/excarnateSojourner/wiktionary different project of mine] to create the lists of valid words from [https://en.wiktionary.org/wiki/Wiktionary:Main_Page Wiktionary].
 
 === Main ===
-<code>py deepCatFilter.py 220920/cats.csv wiktionary_main.txt -i 'English lemmas' 'English non-lemma forms' -e 'English misspellings' 'English letters' 'English obsolete terms' 'English abbreviations' 'English acronyms' 'English initialisms' 'English pseudo-acronyms' 'English derogatory terms' 'English offensive terms' 'English vulgarities' -v</code>
+<pre>
+py deepCatFilter.py 220920/cats.csv wiktionary_main.txt -i 'English lemmas' 'English non-lemma forms' -e 'English misspellings' 'English letters' 'English obsolete terms' 'English abbreviations' 'English acronyms' 'English initialisms' 'English pseudo-acronyms' 'English derogatory terms' 'English offensive terms' 'English vulgarities' -v
+</pre>
 
 From the generated list I then chose only words that consisted purely of upper- and lowercase ASCII letters (no spaces).
 
 === Restricted ===
-<code>py deepCatFilter.py 220920/cats.csv wiktionary_restricted.txt -i 'English lemmas' 'English non-lemma forms' -e 'English nonstandard terms' 'English obsolete terms' 'English archiac terms' 'English dated terms' 'English rare terms' 'English shortenings' 'English proper nouns' 'English letters' 'English derogatory terms' 'English offensive terms' 'English vulgarities' -v</code>
+<pre>
+py deepCatFilter.py 220920/cats.csv wiktionary_restricted.txt -i 'English lemmas' 'English non-lemma forms' -e 'English nonstandard terms' 'English obsolete terms' 'English archiac terms' 'English dated terms' 'English rare terms' 'English shortenings' 'English proper nouns' 'English letters' 'English derogatory terms' 'English offensive terms' 'English vulgarities' -v
+</pre>
 
 From the generated list I then chose only words that consisted purely of lowercase ASCII letters (no spaces).
 
