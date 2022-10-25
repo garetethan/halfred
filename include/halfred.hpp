@@ -138,10 +138,9 @@ namespace halfred {
 			return *this;
 		}
 
-		bool turn(std::istream& in = std::cin, std::ostream& out = std::cout) {
+		bool person_turn(std::istream& in = std::cin, std::ostream& out = std::cout) {
 			StreamHandler{in};
 			StreamHandler{out};
-			// Person's turn.
 			std::string person_word;
 			play person_play = null_play;
 			while (person_play.score < 0) {
@@ -157,23 +156,20 @@ namespace halfred {
 					person_play = null_play;
 				}
 			}
+			out << std::endl;
 			apply_play(person_play, person_available_letter_counts_, person_score_);
+			return true;
+		}
 
-			// Halfred's turn.
+		int computer_turn(std::ostream& out = std::cout) {
+			StreamHandler{out};
 			play hal_play = best_overall();
 			if (hal_play.score < 1) {
-				out << "Halfred does not see any possible plays, so the game is over." << std::endl;
+				out << "Halfred does not see any possible plays. How about you?" << std::endl << std::endl;
 				return false;
 			}
-			out << "Halfred played \"" << hal_play.word << "\" at " << hal_play.row + 1 << index_to_letter(hal_play.col) << (hal_play.across ? 'a' : 'd') << " for " << hal_play.score << " points." << std::endl;
+			out << "Halfred played \"" << hal_play.word << "\" at " << hal_play.row + 1 << index_to_letter(hal_play.col) << (hal_play.across ? 'a' : 'd') << " for " << hal_play.score << " points." << std::endl << std::endl;
 			apply_play(hal_play, hal_available_letter_counts_, hal_score_);
-
-			// Check if game is over.
-			if (board_occupied_count() > board_dimension_ * board_dimension_ >> 1) {
-				out << "More than half the spaces on the board have been filled, so the game is over." << std::endl;
-				return false;
-			}
-			out << game_state();
 			return true;
 		}
 
@@ -221,7 +217,7 @@ namespace halfred {
 			output_column_indexes(out);
 			out << "Your tiles: ";
 			for (unsigned int i = 0; i < letter_space_size + 1; ++i) {
-					out << std::string(person_available_letter_counts_.at(i), upper(index_to_letter(i)));
+				out << std::string(person_available_letter_counts_.at(i), upper(index_to_letter(i)));
 			}
 			out << std::endl;
 			if (verbose_) {
@@ -229,8 +225,9 @@ namespace halfred {
 				for (unsigned int i = 0; i < letter_space_size + 1; ++i) {
 					out << std::string(hal_available_letter_counts_.at(i), upper(index_to_letter(i)));
 				}
+				out << std::endl;
 			}
-			out << std::endl << std::endl;
+			out << std::endl;
 			return out.str();
 		}
 
@@ -679,7 +676,18 @@ namespace halfred {
 		}
 
 		out << game.game_state();
-		while (game.turn(in, out)) {}
+		bool person_playing = true;
+		bool computer_playing = true;
+		while (person_playing || computer_playing) {
+			if (person_playing) {
+				person_playing = game.person_turn(in, out);
+				out << game.game_state();
+			}
+			if (computer_playing) {
+				computer_playing = game.computer_turn(out);
+				out << game.game_state();
+			}
+		}
 
 		if (game.person_score() > game.computer_score()) {
 			out << "Congradulations, you beat Halfred!" << std::endl;
