@@ -5,7 +5,7 @@ I used Python scripts from a [https://github.com/excarnateSojourner/wiktionary d
 
 === Main ===
 <pre>
-py deepCatFilter.py 220920/cats.csv wiktionary_main.txt -i 'English lemmas' 'English non-lemma forms' -e 'English misspellings' 'English letters' 'English obsolete terms' 'English abbreviations' 'English acronyms' 'English initialisms' 'English pseudo-acronyms' 'English derogatory terms' 'English offensive terms' 'English vulgarities' -v
+py deepCatFilter.py 220920/cats.csv wiktionary_main.txt -i 'English lemmas' 'English non-lemma forms' -e 'English misspellings' 'English letters' 'English obsolete terms' 'English obsolete forms' 'English abbreviations' 'English acronyms' 'English initialisms' 'English pseudo-acronyms' 'English derogatory terms' 'English offensive terms' 'English vulgarities' 'English censored spellings' -v
 </pre>
 
 From the generated list I then chose only words that consisted purely of upper- and lowercase ASCII letters (no spaces).
