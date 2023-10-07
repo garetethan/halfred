@@ -1,18 +1,30 @@
-= Accelerable Gammage =
+= Halfred =
 
 == Datasets ==
 I used Python scripts from a [https://github.com/excarnateSojourner/wiktionary different project of mine] to create the lists of valid words from [https://en.wiktionary.org/wiki/Wiktionary:Main_Page Wiktionary].
 
 === Main ===
 <pre>
-py deepCatFilter.py 220920/cats.csv wiktionary_main.txt -i 'English lemmas' 'English non-lemma forms' -e 'English misspellings' 'English letters' 'English obsolete terms' 'English obsolete forms' 'English abbreviations' 'English acronyms' 'English initialisms' 'English pseudo-acronyms' 'English derogatory terms' 'English offensive terms' 'English vulgarities' 'English censored spellings' -v
+py deepCatFilter.py gcats-en.csv wiktionary_main.txt -i 'English lemmas' 'English non-lemma forms' -e 'English misspellings' 'English letters' 'English obsolete terms' 'English obsolete forms' 'English abbreviations' 'English acronyms' 'English initialisms' 'English pseudo-acronyms' 'English derogatory terms' 'English offensive terms' 'English vulgarities' 'English censored spellings' -p 220920/pages-ns0-en.xml -t 220920/formOfTemps.txt -v
+</pre>
+
+Or, if you do not want to add or remove categories from that list, then you can use:
+
+<pre>
+py deepCatFilter.py cats-en.csv wiktionary_main.txt -i 4476265 4482934 -e 2928576 3617379 77766 2037514 8842798 1177266 2928535 1000632 1121913 2928572 1177277 2928574 -n -p gpages-ns0-en.xml -t 220920/formOfTemps.txt -v
 </pre>
 
 From the generated list I then chose only words that consisted purely of upper- and lowercase ASCII letters (no spaces).
 
 === Restricted ===
 <pre>
-py deepCatFilter.py 220920/cats.csv wiktionary_restricted.txt -i 'English lemmas' 'English non-lemma forms' -e 'English nonstandard terms' 'English obsolete terms' 'English archiac terms' 'English dated terms' 'English rare terms' 'English shortenings' 'English proper nouns' 'English letters' 'English derogatory terms' 'English offensive terms' 'English vulgarities' -v
+py deepCatFilter.py gcats-en.csv wiktionary_restricted.txt -i 'English lemmas' 'English non-lemma forms' -e 'English nonstandard terms' 'English obsolete terms' 'English archiac terms' 'English dated terms' 'English rare terms' 'English shortenings' 'English proper nouns' 'English letters' 'English derogatory terms' 'English offensive terms' 'English vulgarities' 'English censored spellings' -p 220920/pages-ns0-en.xml -t 220920/formOfTemps.txt -v
+</pre>
+
+Or, if you do not want to add or remove categories from that list, then you can use:
+
+<pre>
+py deepCatFilter.py gcats-en.csv wiktionary_restricted.txt -i 4476265 4482934 -e 2928576 53124 4466028 8842798 4496476 2928528 1177266 2928566 2928535 2928572 2928574 -n -p 220920/pages-ns0-en.xml -t 220920/formOfTemps.txt -v
 </pre>
 
 From the generated list I then chose only words that consisted purely of lowercase ASCII letters (no spaces).
