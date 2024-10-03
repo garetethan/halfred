@@ -1,35 +1,33 @@
 = Halfred =
 
 == Datasets ==
-I used Python scripts from a [https://github.com/excarnateSojourner/wiktionary different project of mine] to create the lists of valid words from [https://en.wiktionary.org/wiki/Wiktionary:Main_Page Wiktionary].
+I used Python scripts from a [https://github.com/excarnateSojourner/wiktionary different project of mine] to create the lists of valid words from [https://en.wiktionary.org/wiki/Wiktionary:Main_Page Wiktionary]. (The <code>pages-0-en.xml</code> file mentioned below is created by running <code>pages-meta-current.xml</code> through <code>ns.py</code> and <code>lang.py</code>.)
 
 === Main ===
 <pre>
-py deepCatFilter.py cats.csv wiktionary_main.txt -i 'English lemmas' 'English non-lemma forms' -e 'English letters' 'English abbreviations' 'English acronyms' 'English initialisms' 'English pseudo-acronyms' -p pages-0-en.xml -r redirects.csv -t formOfTemps.txt -x obsolete derogatory offensive vulgar -m 'misspelling of' 'censored spelling of' -v
+python -u -X utf8 find_terms.py pages-0-en.xml cats.csv redirects.csv wiktionary_main.txt -i "English lemmas" "English non-lemma forms" -e "English pseudo-acronyms" -s stubs.csv -w -t form_of_temps.txt -x derogatory "ethnic slur" obsolete offensive pejorative vulgar -m "abbreviation of" "acronym of" "censored spelling of" "initialism of" "misspelling of" "obsolete form of" "obsolete spelling of" -v
 </pre>
 
 Or, if you do not want to add or remove categories from that list, then you can use:
 
 <pre>
-py deepCatFilter.py cats.csv wiktionary_main.txt -i 4476265 4482934 -e 3617379 77766 1177266 1121913 1177277 -n -p pages-0-en.xml -r redirects.csv -t formOfTemps.txt -x obsolete derogatory offensive vulgar -m 'misspelling of' 'censored spelling of' -v
+python -u -X utf8 find_terms.py pages-0-en.xml cats.csv redirects.csv wiktionary_main.txt -i 4476265 4482934 -e 3617379 -w -t form_of_temps.txt -x derogatory "ethnic slur" obsolete offensive pejorative vulgar -m "abbreviation of" "acronym of" "censored spelling of" "initialism of" "misspelling of" "obsolete form of" "obsolete spelling of" -v
 </pre>
 
 From the generated list I then chose only words that consisted purely of upper- and lowercase ASCII letters (no spaces).
 
 === Restricted ===
 <pre>
-py deepCatFilter.py cats.csv wiktionary_restricted.txt -i 'English lemmas' 'English non-lemma forms' -e 'English shortenings' 'English proper nouns' 'English letters' -p pages-0-en.xml -r redirects.csv -t formOfTemps.txt -l en -x obsolete archaic dated rare nonstandard slang derogatory offensive vulgar -m 'misspelling of' 'censored spelling of' -v
+python -u -X utf8 find_terms.py pages-0-en.xml cats.csv redirects.csv wiktionary_restricted.txt -i "English lemmas" "English non-lemma forms" -e "English proper nouns" "English pseudo-acronyms" -s stubs.csv -w -t form_of_temps.txt -x archaic dated derogatory "ethnic slur" nonstandard obsolete offensive pejorative rare slang vulgar -m "abbreviation of" "acronym of" "censored spelling of" "initialism of" "misspelling of" "obsolete form of" "obsolete spelling of" -v
 </pre>
 
 Or, if you do not want to add or remove categories from that list, then you can use:
 
 <pre>
-py deepCatFilter.py cats.csv wiktionary_restricted.txt -i 4476265 4482934 -e 1177266 53124 4496476 -n -p pages-0-en.xml -r redirects.csv -t formOfTemps.txt -l en -x obsolete archaic dated rare nonstandard slang derogatory offensive vulgar -m 'misspelling of' 'censored spelling of' -v
+python -u -X utf8 find_terms.py pages-0-en.xml cats.csv redirects.csv wiktionary_restricted.txt -i 4476265 4482934 -e 53124 3617379 -w -t form_of_temps.txt -x archaic dated derogatory "ethnic slur" nonstandard obsolete offensive pejorative rare slang vulgar -m "abbreviation of" "acronym of" "censored spelling of" "initialism of" "misspelling of" "obsolete form of" "obsolete spelling of" -v
 </pre>
 
-From the generated list I then chose only words that consisted purely of lowercase ASCII letters (no spaces).
-
-I wanted to also exclude slang terms, but I found that excluding <code>Category:English slang</code> excluded too many terms that were legitimate common words (like ''pen'' and ''goon''). I was also going to exclude <code>Category:English morphemes</code> which includes prefixes and suffixes, but it also includes prefixed and suffixed words (like ''unpin''), which I thought important to include. Prefixes, suffixes, and the like should all still be excluded, though, as on Wiktionary they are spelled with hyphens.
+From the generated list I then chose only words that consisted purely of lowercase ASCII letters.
 
 == Name ==
 The name ''Halfred'' was chosen to honour [https://en.wikipedia.org/wiki/Alfred_Mosher_Butts Alfred Mosher Butts], the inventor of Scrabble, and in reference to [https://mspaintadventures.fandom.com/wiki/Lil_Hal Lil Hal], a character in [https://en.wikipedia.org/wiki/Homestuck Homestuck], a web comic.
