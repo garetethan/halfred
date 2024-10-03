@@ -1,0 +1,41 @@
+{
+	"#": "The values of keys starting with # are comments which are ignored by find_terms.",
+	"pages path": "240620/pages-0-en.xml",
+	"cats path": "240620/cats.csv",
+	"redirects path": "240620/redirects.csv",
+	"output path": "240620/halfred_main.txt",
+	"# include cats": ["English lemmas", "English non-lemma forms"],
+	"include cats": [4476265, 4482934],
+	"# exclude cats": ["English pseudo-acronyms"],
+	"exclude cats": [3617379],
+	"stubs path": "",
+	"depth": -1,
+	"small ram": false,
+	"# regex": "Any printable ASCII characters.",
+	"regex": "[a-zA-Z]+",
+	"temps cache path": "240620/form_of_temps.txt",
+	"label lang": "en",
+	"# exclude labels": "Shavian is an alternative alphabet for English that someone invented. If this is new information to you, then you can't read Shavian. For an example of a word written in Shavian, see [https://en.wiktionary.org/wiki/%F0%90%91%AE%F0%90%91%A6%F0%90%91%95%F0%90%91%90%F0%90%91%A7%F0%90%91%92%F0%90%91%91]. For a discussion of whether these should be included in Wiktionary as English words, see [https://en.wiktionary.org/wiki/Wiktionary:Beer_parlour/2023/September#Shavian-alphabet_English_entries]. Regional labels were gathered from Module:labels/data/regional and Module:labels/data/lang/en.",
+	"exclude labels": [
+		"derogatory",
+		"ethnic slur",
+		"initialism",
+		"obsolete",
+		"offensive",
+		"pejorative",
+		"Shavian",
+		"vulgar"
+	],
+	"# exclude temps": "The label 'obsolete' is stronger than 'archaic'. There is also 'dated', which is weaker than either. Censored spellings are terms like 'cr*p', where a possibly offensive word is partially censored. Elongated forms are words like 'nooo', where a letter is repeated to indicate a longer pronunciation. Station codes are for specific railway stations. An example is 'HWH'.",
+	"exclude temps": [
+		"abbreviation of",
+		"acronym of",
+		"censored spelling of",
+		"initialism of",
+		"misspelling of",
+		"obsolete form of",
+		"obsolete spelling of"
+	],
+	"parts of speech": [],
+	"verbose": true
+}
