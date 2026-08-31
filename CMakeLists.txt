@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.30)
 add_compile_options(-std=c++20)
 
 project(halfred LANGUAGES CXX)
