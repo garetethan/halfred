@@ -1,10 +1,10 @@
 {
 	"#": "The values of keys starting with # are comments which are ignored by find_terms.",
-	"stubs path": "250501/stubs.csv",
-	"redirects path": "250501/redirects.csv",
-	"pages path": "250501/pages_0_en.xml",
-	"output path": "250501/halfred_main.txt",
-	"cats path": "250501/cats.csv",
+	"stubs path": "260601/stubs.csv",
+	"redirects path": "260601/redirects.csv",
+	"pages path": "260601/pages_0_en.xml",
+	"output path": "260601/halfred_main.txt",
+	"cats path": "260601/cats.csv",
 	"include cats": ["English lemmas", "English non-lemma forms"],
 	"exclude cats": ["English pseudo-acronyms"],
 	"depth": 0,
@@ -33,6 +33,6 @@
 		"obsolete spelling of",
 		"only used in"
 	],
-	"temps cache path": "250501/form_of_temps.txt",
+	"temps cache path": "260601/form_of_temps.txt",
 	"verbose": true
 }
