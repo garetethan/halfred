@@ -1,0 +1,43 @@
+{
+	"#": "The values of keys starting with # are comments which are ignored by find_terms.",
+	"stubs path": "260601/stubs.csv",
+	"redirects path": "260601/redirects.csv",
+	"pages path": "260601/pages_0_en.xml",
+	"output path": "260601/halfred_restricted.txt",
+	"cats path": "260601/cats.csv",
+	"include cats": ["English lemmas", "English non-lemma forms"],
+	"exclude cats": [
+		"English proper nouns",
+		"English pseudo-acronyms",
+		"en:Sex"
+	],
+	"depth": 0,
+	"small ram": true,
+	"# regex": "Allow only terms consisting of letters to remove spaced and hyphenated terms. Ensure the term contains at least one lowercase letter. Otherwise it's probably an initialism in disguise.",
+	"regex": "[a-zA-Z]*[a-z]+[a-zA-Z]*",
+	"label lang": "en",
+	"# exclude labels": "The label 'obsolete' is stronger than 'archaic'. There is also 'dated', which is weaker than either.",
+	"exclude labels": [
+		"derogatory",
+		"ethnic slur",
+		"initialism",
+		"obsolete",
+		"offensive",
+		"pejorative",
+		"vulgar"
+	],
+	"# exclude temps": "Censored spellings are terms like 'cr*p', where a possibly offensive word is partially censored. Elongated forms are words like 'nooo', where a letter is repeated for emphasis. Station codes are for specific railway stations. An example is 'HWH'.",
+	"exclude temps": [
+		"abbreviation of",
+		"acronym of",
+		"censored spelling of",
+		"initialism of",
+		"misspelling of",
+		"obsolete form of",
+		"obsolete spelling of",
+		"only used in",
+		"station code"
+	],
+	"temps cache path": "260601/form_of_temps.txt",
+	"verbose": true
+}
