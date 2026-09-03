@@ -457,7 +457,7 @@ namespace halfred {
 
 			size_type row_i = p.row;
 			size_type col_i = p.col;
-			unsigned int cross_word_count = 0;
+			bool connects_to_existing = false;
 			// For every letter in the word being played.
 			for (unsigned int word_i = 0; word_i < p.word.size(); ++word_i, p.across ? ++col_i : ++row_i) {
 				size_type letter_as_index = letter_to_index(p.word.at(word_i));
@@ -466,6 +466,7 @@ namespace halfred {
 					// If the cell already has the required letter.
 					if (board_.at(row_i).at(col_i) == p.word.at(word_i)) {
 						p.score += letter_scores_.at(letter_as_index);
+						connects_to_existing = true;
 					}
 					// If the cell is empty, let's see if we can fill it.
 					else if (board_.at(row_i).at(col_i) == empty) {
@@ -510,7 +511,7 @@ namespace halfred {
 								p.score = -1;
 								return std::string{"Doing so would simultaneously spell the invalid word \""} + cross_word + "\".";
 							}
-							++cross_word_count;
+							connects_to_existing = true;
 						}
 						// The word is spelled downwards.
 						else if (!p.across
@@ -535,7 +536,7 @@ namespace halfred {
 								p.score = -1;
 								return std::string{"Doing so would simultaneously spell the invalid word \""} + cross_word + "\".";
 							}
-							++cross_word_count;
+							connects_to_existing = true;
 						}
 					}
 					// The cell is already filled with a conflicting letter.
@@ -554,7 +555,7 @@ namespace halfred {
 				return "The word is already on the board in that position. You wouldn't be adding anything to it.";
 			}
 			// If the play has no crosswords, it is not connected to any words already on the board, and is therefore invalid.
-			if (cross_word_count == 0) {
+			if (!connects_to_existing) {
 				p.score = -1;
 				return "It would not be touching any other words already on the board.";
 			}
