@@ -382,41 +382,45 @@ namespace halfred {
 			}
 			else {
 				board_row.reserve(board_dimension_);
-				for (size_type row_i = 0; row_i < board_dimension_; ++row_i) {
-					board_row.push_back(board_.at(row_i).at(row_index));
+				for (size_type i = 0; i < board_dimension_; ++i) {
+					board_row.push_back(board_.at(i).at(row_index));
 				}
 			}
 			std::map<size_type, char> row_letters{};
-			for (unsigned int i = 0; i < board_dimension_; ++i) {
+			for (size_type i = 0; i < board_dimension_; ++i) {
 				if (board_row.at(i) != empty) {
 					row_letters.emplace(i, board_row.at(i));
 				}
 			}
 
 			play best_option = null_play;
-			for (const std::string& word : valid_words_) {
-				for (const auto& index_letter : row_letters) {
-					std::string::size_type pos = word.find(index_letter.second);
+			for (const auto& index_letter_pair : row_letters) {
+				size_type index_in_row = index_letter_pair.first;
+				char letter = index_letter_pair.second;
+				for (const std::string& word : valid_words_) {
+					std::string::size_type pos = word.find(letter);
 					while (pos != std::string::npos) {
-						auto word_start = board_row.begin() + index_letter.first - pos;
+						auto word_start = board_row.begin() + index_in_row - pos;
 						auto word_end = word_start + word.size();
 						if (word_start >= board_row.begin() && word_start < board_row.end() && word_end <= board_row.end()) {
 							play p = null_play;
 							p.word = word;
 							if (is_row) {
 								p.row = row_index;
-								p.col = index_letter.first;
+								p.col = index_in_row - pos;
+								p.across = true;
 							}
 							else {
-								p.row = index_letter.first;
+								p.row = index_in_row - pos;
 								p.col = row_index;
+								p.across = false;
 							}
 							evaluate_play(p, hal_available_letter_counts_);
 							if (p.score > best_option.score) {
 								best_option = p;
 							}
 						}
-						pos = word.find(index_letter.second, pos + 1);
+						pos = word.find(letter, pos + 1);
 					}
 				}
 			}
