@@ -72,12 +72,14 @@ namespace halfred {
 			letter_tally letters_used;
 		};
 
-		static constexpr unsigned short lowercase_offset = 97;
+		static constexpr unsigned short lowercase_offset = static_cast<unsigned short>('a');
 		static constexpr size_type available_letter_sum = 8;
 		static constexpr char empty = '_';
 		static constexpr char wild = '*';
 		// This limit has been chosen because it is the greatest multiple of 8 less than the number of letters in the English alphabet.
 		static constexpr size_type max_board_dimension = 24;
+
+		// Defined outside of the class body.
 		static const play null_play;
 		static const std::regex valid_location_pattern;
 
@@ -145,7 +147,7 @@ namespace halfred {
 			play person_play = null_play;
 			while (person_play.score < 0) {
 				get_word(person_play, in, out);
-				// An underscore means the person is giving up on spelling any more words, ending the game.
+				// An underscore means the person is giving up on spelling any more words.
 				if (person_play.word == "_") {
 					return false;
 				}
@@ -286,9 +288,8 @@ namespace halfred {
 		std::mt19937 random_bit_gen_;
 		std::uniform_real_distribution<float> random_letter_dist_;
 
-		// + 1 is for blank tiles.
-		letter_tally person_available_letter_counts_;
-		letter_tally hal_available_letter_counts_;
+		letter_tally person_available_letter_counts_{};
+		letter_tally hal_available_letter_counts_{};
 		unsigned int person_score_;
 		unsigned int hal_score_;
 
@@ -297,11 +298,6 @@ namespace halfred {
 			assert(board_dimension_ <= max_board_dimension);
 
 			std::sort(valid_words_.begin(), valid_words_.end());
-
-			for (size_type i = 0; i < letter_space_size; ++i) {
-				person_available_letter_counts_.at(i) = 0;
-				hal_available_letter_counts_.at(i) = 0;
-			}
 
 			letter_weights_.front() = 1.f / letter_scores_.front();
 			for (size_type i = 1; i < letter_space_size; ++i) {
@@ -451,10 +447,10 @@ namespace halfred {
 
 			if ((p.across
 				&& ((p.col > 0 && board_.at(p.row).at(p.col - 1) != empty)
-				|| (p.col + p.word.size() < board_dimension_ && board_.at(p.row).at(p.col + p.word.size()) != empty)))
+					|| (p.col + p.word.size() < board_dimension_ && board_.at(p.row).at(p.col + p.word.size()) != empty)))
 				|| (!p.across
-				&& ((p.row > 0 && board_.at(p.row - 1).at(p.col) != empty)
-				|| (p.row + p.word.size() < board_dimension_ && board_.at(p.row + p.word.size()).at(p.col) != empty)))) {
+					&& ((p.row > 0 && board_.at(p.row - 1).at(p.col) != empty)
+					|| (p.row + p.word.size() < board_dimension_ && board_.at(p.row + p.word.size()).at(p.col) != empty)))) {
 				p.score = -1;
 				return "It would be right up against another word in the same dimension, forming a longer possible word with the other word. If this longer word is valid and you want to play it, then enter it.";
 			}
@@ -462,8 +458,10 @@ namespace halfred {
 			size_type row_i = p.row;
 			size_type col_i = p.col;
 			unsigned int cross_word_count = 0;
+			// For every letter in the word being played.
 			for (unsigned int word_i = 0; word_i < p.word.size(); ++word_i, p.across ? ++col_i : ++row_i) {
 				size_type letter_as_index = letter_to_index(p.word.at(word_i));
+				// try is for std::out_of_range
 				try {
 					// If the cell already has the required letter.
 					if (board_.at(row_i).at(col_i) == p.word.at(word_i)) {
@@ -489,7 +487,7 @@ namespace halfred {
 						// Check for invalid crosswords.
 						if (p.across
 							&& ((row_i > 0 && board_.at(row_i - 1).at(col_i) != empty)
-							|| (row_i < board_dimension_ - 1 && board_.at(row_i + 1).at(col_i) != empty))) {
+								|| (row_i < board_dimension_ - 1 && board_.at(row_i + 1).at(col_i) != empty))) {
 							size_type cross_word_start = row_i;
 							while (cross_word_start > 0 && board_.at(cross_word_start - 1).at(col_i) != empty) {
 								--cross_word_start;
@@ -517,7 +515,7 @@ namespace halfred {
 						// The word is spelled downwards.
 						else if (!p.across
 							&& ((col_i > 0 && board_.at(row_i).at(col_i - 1) != empty)
-							|| (col_i < board_dimension_ - 1 && board_.at(row_i).at(col_i + 1) != empty))) {
+								|| (col_i < board_dimension_ - 1 && board_.at(row_i).at(col_i + 1) != empty))) {
 							size_type cross_word_start = col_i;
 							while (cross_word_start > 0 && board_.at(row_i).at(cross_word_start - 1) != empty) {
 								--cross_word_start;
@@ -537,7 +535,7 @@ namespace halfred {
 								p.score = -1;
 								return std::string{"Doing so would simultaneously spell the invalid word \""} + cross_word + "\".";
 							}
-						++cross_word_count;
+							++cross_word_count;
 						}
 					}
 					// The cell is already filled with a conflicting letter.
@@ -555,8 +553,8 @@ namespace halfred {
 				p.score = -1;
 				return "The word is already on the board in that position. You wouldn't be adding anything to it.";
 			}
-			// If a play has no crosswords and there are already words on the board, the play being evaluated is not connected to any words already on the board, and is therefore invalid.
-			if (cross_word_count == 0 && board_occupied_count() > 1) {
+			// If the play has no crosswords, it is not connected to any words already on the board, and is therefore invalid.
+			if (cross_word_count == 0) {
 				p.score = -1;
 				return "It would not be touching any other words already on the board.";
 			}
