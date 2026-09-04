@@ -495,7 +495,7 @@ namespace halfred {
 						}
 						else {
 							p.score = -1;
-							return std::string{"You do not have enough "} + p.word.at(word_i) + "'s to play it there.";
+							return std::string{"You do not have enough "} + upper(p.word.at(word_i)) + "'s to play it there.";
 						}
 
 						// Check for invalid crosswords.
@@ -555,7 +555,7 @@ namespace halfred {
 					// The cell is already filled with a conflicting letter.
 					else {
 						p.score = -1;
-						return std::string{"The board already has "} + board_.at(row_i).at(col_i) + " where you want to put " + p.word.at(word_i) + ".";
+						return std::string{"The board already has "} + upper(board_.at(row_i).at(col_i)) + " where you want to put " + upper(p.word.at(word_i)) + ".";
 					}
 				}
 				catch (std::out_of_range) {
