@@ -47,6 +47,15 @@ namespace halfred {
 		out << prompt << " " << std::flush;
 		std::string input;
 		in >> input;
+		if (input.starts_with("/") || input.starts_with("!") || input.starts_with(".")) {
+			input.erase(0, 1);
+			if (input == "exit" || input == "quit") {
+				throw std::runtime_error("Exit game");
+			}
+		}
+		else if (input.find("exit") != std::string::npos || input.find("quit") != std::string::npos) {
+			out << "Type /exit to exit the game immediately." << std::endl;
+		}
 		return input;
 	}
 
@@ -584,7 +593,7 @@ namespace halfred {
 			}
 			p.word = clean_word(p.word);
 			if (p.word.empty() || !std::binary_search(valid_words_.begin(), valid_words_.end(), p.word)) {
-				out << "Invalid word. Be sure to use only lowercase English letters. If you are unable to spell any more words, type \"_\" (an underscore) to end the game." << std::endl;
+				out << "Invalid word. Be sure to use only English letters. If you are unable to spell any more words, type \"_\" (an underscore) to give up (and let Halfred try to find more plays)." << std::endl;
 				get_word(p, in, out);
 			}
 		}
@@ -678,6 +687,7 @@ namespace halfred {
 			game = Game{valid_words, letter_scores, board_dimension, verbose};
 		}
 
+		out << "Welcome to Halfred! Type \"/exit\" at any time to exit the game. If it's your turn and you can't see any possible moves, you can give up by typing \"_\" (an underscore).";
 		out << game.game_state();
 		bool person_playing = true;
 		bool computer_playing = true;
