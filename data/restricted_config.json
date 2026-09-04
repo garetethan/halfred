@@ -13,8 +13,8 @@
 	],
 	"depth": 0,
 	"small ram": true,
-	"# regex": "Allow only terms consisting of letters to remove spaced and hyphenated terms. Ensure the term contains at least one lowercase letter. Otherwise it's probably an initialism in disguise.",
-	"regex": "[a-zA-Z]*[a-z]+[a-zA-Z]*",
+	"# regex": "Allow only terms consisting of letters to remove spaced and hyphenated terms. Omit terms that consist of only uppercase letters, optionally followed by 's' or 'es', as these are likely initialisms.",
+	"regex": "(?![A-Z]+(?:es|s)?$)[a-zA-Z]+",
 	"label lang": "en",
 	"# exclude labels": "The label 'obsolete' is stronger than 'archaic'. There is also 'dated', which is weaker than either.",
 	"exclude labels": [
