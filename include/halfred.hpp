@@ -10,6 +10,7 @@
 #include <numeric>
 #include <random>
 #include <regex>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <sstream>
@@ -95,7 +96,7 @@ namespace halfred {
 		// Attempting to use a default initialized Game causes undefined behaviour.
 		Game() : verbose_(false) {}
 
-		Game(std::vector<std::string> valid_words, letter_tally letter_scores, size_type board_dimension, bool verbose) :
+		Game(std::set<std::string> valid_words, letter_tally letter_scores, size_type board_dimension, bool verbose) :
 				letter_scores_(letter_scores),
 				valid_words_(valid_words),
 				board_dimension_(board_dimension),
@@ -103,7 +104,7 @@ namespace halfred {
 			init();
 		}
 
-		Game(std::vector<std::string> valid_words, size_type board_dimension, bool verbose) :
+		Game(std::set<std::string> valid_words, size_type board_dimension, bool verbose) :
 				valid_words_(valid_words),
 				board_dimension_(board_dimension),
 				verbose_(verbose) {
@@ -242,7 +243,7 @@ namespace halfred {
 			return out.str();
 		}
 
-		std::vector<std::string> valid_words() const noexcept {
+		std::set<std::string> valid_words() const noexcept {
 			return valid_words_;
 		}
 
@@ -286,7 +287,7 @@ namespace halfred {
 		static std::string clean_word(std::string word);
 
 		protected:
-		std::vector<std::string> valid_words_;
+		std::set<std::string> valid_words_;
 		letter_tally letter_scores_;
 		size_type board_dimension_;
 		bool verbose_;
@@ -305,8 +306,6 @@ namespace halfred {
 		private:
 		void init() {
 			assert(board_dimension_ <= max_board_dimension);
-
-			std::sort(valid_words_.begin(), valid_words_.end());
 
 			letter_weights_.front() = 1.f / letter_scores_.front();
 			for (size_type i = 1; i < letter_space_size; ++i) {
@@ -515,7 +514,7 @@ namespace halfred {
 								cross_word += board_.at(cross_i).at(col_i);
 							}
 							cross_word.at(row_i - cross_word_start) = p.word.at(word_i);
-							if (std::binary_search(valid_words_.begin(), valid_words_.end(), cross_word)) {
+							if (valid_words_.contains(cross_word)) {
 								for (const char& ch : cross_word) {
 									p.score += letter_scores_.at(letter_to_index(ch));
 								}
@@ -540,7 +539,7 @@ namespace halfred {
 							}
 							std::string cross_word(board_.at(row_i).begin() + cross_word_start, board_.at(row_i).begin() + cross_word_end);
 							cross_word.at(col_i - cross_word_start) = p.word.at(word_i);
-							if (std::binary_search(valid_words_.begin(), valid_words_.end(), cross_word)) {
+							if (valid_words_.contains(cross_word)) {
 								for (const char& ch : cross_word) {
 									p.score += letter_scores_.at(letter_to_index(ch));
 								}
@@ -592,7 +591,7 @@ namespace halfred {
 				return;
 			}
 			p.word = clean_word(p.word);
-			if (p.word.empty() || !std::binary_search(valid_words_.begin(), valid_words_.end(), p.word)) {
+			if (p.word.empty() || !valid_words_.contains(p.word)) {
 				out << "Invalid word. Be sure to use only English letters. If you are unable to spell any more words, type \"_\" (an underscore) to give up (and let Halfred try to find more plays)." << std::endl;
 				get_word(p, in, out);
 			}
@@ -659,12 +658,12 @@ namespace halfred {
 		StreamHandler{out};
 		std::ifstream valid_words_file = defensively_open(valid_words_path);
 		StreamHandler{valid_words_file};
-		std::vector<std::string> valid_words{};
+		std::set<std::string> valid_words{};
 		std::string word;
 		while (valid_words_file >> word) {
 			word = Game::clean_word(word);
 			if (word.size() > 0 && word.size() < board_dimension) {
-				valid_words.push_back(word);
+				valid_words.insert(word);
 			}
 		}
 
