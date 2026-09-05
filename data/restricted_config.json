@@ -13,11 +13,12 @@
 	],
 	"depth": 0,
 	"small ram": true,
-	"# regex": "Allow only terms consisting of letters to remove spaced and hyphenated terms. Omit terms that consist of only uppercase letters, optionally followed by 's' or 'es', as these are likely initialisms.",
-	"regex": "(?![A-Z]+(?:es|s)?$)[a-zA-Z]+",
+	"# regex": "Allow only terms consisting of letters to remove spaced and hyphenated terms. Omit terms that consist of two or more uppercase letters, optionally followed by 's' or 'es', as these are likely initialisms (even if they aren't templated as such).",
+	"regex": "(?![A-Z]{2,}(?:es|s)?$)[a-zA-Z]+",
 	"label lang": "en",
 	"# exclude labels": "The label 'obsolete' is stronger than 'archaic'. There is also 'dated', which is weaker than either.",
 	"exclude labels": [
+		"archaic",
 		"derogatory",
 		"ethnic slur",
 		"initialism",
@@ -31,6 +32,7 @@
 		"abbreviation of",
 		"acronym of",
 		"censored spelling of",
+		"elongated form of",
 		"initialism of",
 		"misspelling of",
 		"obsolete form of",
@@ -39,5 +41,6 @@
 		"station code"
 	],
 	"temps cache path": "260601/form_of_temps.txt",
+	"sort": true,
 	"verbose": true
 }

@@ -27,12 +27,15 @@
 		"abbreviation of",
 		"acronym of",
 		"censored spelling of",
+		"elongated form of",
 		"initialism of",
 		"misspelling of",
 		"obsolete form of",
 		"obsolete spelling of",
-		"only used in"
+		"only used in",
+		"station code"
 	],
 	"temps cache path": "260601/form_of_temps.txt",
+	"sort": true,
 	"verbose": true
 }
