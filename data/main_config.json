@@ -9,8 +9,8 @@
 	"exclude cats": ["English pseudo-acronyms"],
 	"depth": 0,
 	"small ram": true,
-	"# regex": "Allow only terms consisting of letters to remove spaced and hyphenated terms.",
-	"regex": "[a-zA-Z]+",
+	"# regex": "Allow only terms consisting of letters to remove spaced and hyphenated terms. One-letter words are redundant because of how the game is designed. Two-letter words are selected separately.",
+	"regex": "[a-zA-Z]{3,}",
 	"label lang": "en",
 	"# exclude labels": "The label 'obsolete' is stronger than 'archaic'. There is also 'dated', which is weaker than either.",
 	"exclude labels": [
@@ -22,7 +22,7 @@
 		"pejorative",
 		"vulgar"
 	],
-	"# exclude temps": "Censored spellings are terms like 'cr*p', where a possibly offensive word is partially censored. Elongated forms are words like 'nooo', where a letter is repeated for emphasis. Station codes are for specific railway stations. An example is 'HWH'.",
+	"# exclude temps": "Censored spellings are terms like 'cr*p', where a possibly offensive word is partially censored. Elongated forms are words like 'nooo', where a letter is repeated for emphasis. rfdef represents a request for a definition, meaning no definition is actually given. Station codes are for specific railway stations. An example is 'HWH' for Haltwhistle railway station in England.",
 	"exclude temps": [
 		"abbreviation of",
 		"acronym of",
@@ -30,9 +30,11 @@
 		"elongated form of",
 		"initialism of",
 		"misspelling of",
+		"nonstandard",
 		"obsolete form of",
 		"obsolete spelling of",
 		"only used in",
+		"rfdef",
 		"station code"
 	],
 	"temps cache path": "260601/form_of_temps.txt",
