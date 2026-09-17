@@ -2,8 +2,6 @@
 #include <algorithm>
 // array
 #include <array>
-// assert
-#include <cassert>
 // ifstream
 #include <fstream>
 // setw
@@ -73,7 +71,7 @@ namespace halfred {
 		};
 
 		static constexpr unsigned short lowercase_offset = static_cast<unsigned short>('a');
-		static constexpr size_type available_letter_sum = 8;
+		static constexpr size_type rack_size = 8;
 		static constexpr char empty = '_';
 		static constexpr char wild = '*';
 		// This limit has been chosen because it is the greatest multiple of 8 less than the number of letters in the English alphabet.
@@ -99,6 +97,7 @@ namespace halfred {
 				board_dimension_(board_dimension),
 				verbose_(verbose) {
 
+			// Calculate letter scores.
 			letter_tally letter_counts{};
 			unsigned int total_letters = 0;
 			for (const std::string& word : valid_words_) {
@@ -109,7 +108,8 @@ namespace halfred {
 			}
 
 			for (unsigned int i = 0; i < letter_space_size; ++i) {
-				letter_scores_.at(i) = std::max(total_letters / letter_counts.at(i), 1U);
+				const unsigned int quotient = std::max(letter_counts.at(i), 1U);
+				letter_scores_.at(i) = std::max(total_letters / quotient, 1U);
 			}
 			letter_scores_.back() = 0.f;
 
@@ -295,11 +295,9 @@ namespace halfred {
 
 		private:
 		void init() {
-			assert(board_dimension_ <= max_board_dimension);
-
-			letter_weights_.front() = 1.f / letter_scores_.front();
+			letter_weights_.front() = 1.f / std::max(letter_scores_.front(), 1U);
 			for (size_type i = 1; i < letter_space_size; ++i) {
-				letter_weights_.at(i) = letter_weights_.at(i - 1) + (1.f / letter_scores_.at(i));
+				letter_weights_.at(i) = letter_weights_.at(i - 1) + (1.f / std::max(letter_scores_.at(i), 1U));
 			}
 			// Let blank tiles have a weight equal to the average of all letters.
 			float z_weight = letter_weights_.at(letter_space_size - 1);
@@ -309,8 +307,8 @@ namespace halfred {
 
 			person_score_ = 0;
 			hal_score_ = 0;
-			draw_letters(person_available_letter_counts_, available_letter_sum);
-			draw_letters(hal_available_letter_counts_, available_letter_sum);
+			draw_letters(person_available_letter_counts_, rack_size);
+			draw_letters(hal_available_letter_counts_, rack_size);
 
 			board_.reserve(board_dimension_);
 			const char empty_copy = empty;
@@ -328,7 +326,8 @@ namespace halfred {
 		}
 
 		unsigned int random_letter_as_index() {
-			return std::upper_bound(letter_weights_.begin(), letter_weights_.end(), random_letter_dist_(random_bit_gen_)) - letter_weights_.begin();
+			unsigned int index = std::upper_bound(letter_weights_.begin(), letter_weights_.end(), random_letter_dist_(random_bit_gen_)) - letter_weights_.begin();
+			return index;
 		}
 
 		// Randomly select tiles to be added to available letters.
