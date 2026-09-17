@@ -60,3 +60,37 @@ BOOST_FIXTURE_TEST_CASE(test_game_constructor_with_letter_scores, ConstructorFix
 	BOOST_TEST(game.letter_scores().at(7) == 7);
 	BOOST_TEST(game.board_dimension() == board_dimension);
 }
+
+BOOST_FIXTURE_TEST_CASE(test_board_occupied_count, GameFixture) {
+	BOOST_TEST(board_occupied_count() == 1);
+}
+
+BOOST_FIXTURE_TEST_CASE(test_random_letter_as_index, GameFixture) {
+	const unsigned int index = random_letter_as_index();
+	BOOST_TEST(index >= 0);
+	BOOST_TEST(index <= Game::letter_space_size);
+}
+
+BOOST_FIXTURE_TEST_CASE(test_draw_letters, GameFixture) {
+	// Braces initialize to all zeros.
+	letter_tally tile_rack{};
+	const unsigned int tiles_to_draw = 6;
+	draw_letters(tile_rack, tiles_to_draw);
+	BOOST_TEST(std::accumulate(tile_rack.begin(), tile_rack.end(), 0) == tiles_to_draw);
+}
+
+BOOST_FIXTURE_TEST_CASE(test_parse_location_good, GameFixture) {
+	play p = null_play;
+	const std::string good_location{"1ba"};
+	parse_location(p, good_location);
+	BOOST_TEST(p.row == 0);
+	BOOST_TEST(p.col == 1);
+	BOOST_TEST(p.across = true);
+}
+
+BOOST_FIXTURE_TEST_CASE(test_parse_location_bad, GameFixture) {
+	play p = null_play;
+	const std::string bad_location{"foo"};
+	parse_location(p, bad_location);
+	BOOST_TEST(p.row >= board_dimension());
+}
