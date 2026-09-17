@@ -1,11 +1,18 @@
 #define BOOST_TEST_MODULE test_halfred
 
+#include <numeric>
+
 #include <boost/test/included/unit_test.hpp>
 
 #include <halfred.hpp>
 
 using namespace halfred;
 
+class PlayGameFixture {
+	public:
+	const std::string valid_words_path = "../data/main.txt";
+	const std::string letter_scores_path = "../data/letter_scores.txt";
+};
 
 class ConstructorFixture {
 	public:
@@ -19,6 +26,14 @@ class ConstructorFixture {
 			letter_scores.at(i) = i;
 		}
 	}
+};
+
+const ConstructorFixture constructor_fixture{};
+
+class GameFixture : public Game {
+	public:
+	// We can't have a member variable that's an instance of ConstructorFixture, because the Game parent class would be initialized before our member variable (and therefore be constructed with garbage values).
+	GameFixture() : Game{constructor_fixture.valid_words, constructor_fixture.letter_scores, constructor_fixture.board_dimension} {}
 };
 
 BOOST_AUTO_TEST_CASE(test_lower) {

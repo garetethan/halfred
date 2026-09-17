@@ -50,7 +50,7 @@ namespace halfred {
 			stream_.width(width_);
 		}
 
-		private:
+		protected:
 		std::ios& stream_;
 		std::ios::iostate exceptions_;
 		std::streamsize width_;
@@ -84,7 +84,7 @@ namespace halfred {
 		// Attempting to use a default initialized Game causes undefined behaviour.
 		Game() : verbose_(false) {}
 
-		Game(std::set<std::string> valid_words, letter_tally letter_scores, size_type board_dimension, bool verbose) :
+		Game(std::set<std::string> valid_words, letter_tally letter_scores, size_type board_dimension, bool verbose = false) :
 				letter_scores_(letter_scores),
 				valid_words_(valid_words),
 				board_dimension_(board_dimension),
@@ -92,7 +92,7 @@ namespace halfred {
 			init();
 		}
 
-		Game(std::set<std::string> valid_words, size_type board_dimension, bool verbose) :
+		Game(std::set<std::string> valid_words, size_type board_dimension, bool verbose = false) :
 				valid_words_(valid_words),
 				board_dimension_(board_dimension),
 				verbose_(verbose) {
@@ -293,7 +293,6 @@ namespace halfred {
 		unsigned int person_score_;
 		unsigned int hal_score_;
 
-		private:
 		void init() {
 			letter_weights_.front() = 1.f / std::max(letter_scores_.front(), 1U);
 			for (size_type i = 1; i < letter_space_size; ++i) {
