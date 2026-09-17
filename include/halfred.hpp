@@ -33,7 +33,7 @@ namespace halfred {
 	using size_type = unsigned int;
 
 	// Defined in halfred.cpp.
-	int play_game(std::string valid_words_path, std::string letter_scores_path = "", size_type board_dimension = 16, bool verbose = false, std::istream& in = std::cin, std::ostream& out = std::cout);
+	int play_game(std::string valid_words_path, std::string letter_scores_path = "", const size_type board_dimension = 16, const bool verbose = false, std::istream& in = std::cin, std::ostream& out = std::cout);
 	std::ifstream defensively_open(const std::string path);
 	std::string get_input(const std::string prompt, std::istream& in = std::cin, std::ostream& out = std::cout);
 	char lower(const char up);
@@ -82,20 +82,22 @@ namespace halfred {
 		static const std::regex valid_location_pattern;
 
 		// Attempting to use a default initialized Game causes undefined behaviour.
-		Game() : verbose_(false) {}
+		Game() : verbose_(false), seed_(0) {}
 
-		Game(std::set<std::string> valid_words, letter_tally letter_scores, size_type board_dimension, bool verbose = false) :
+		Game(std::set<std::string> valid_words, letter_tally letter_scores, const size_type board_dimension, const bool verbose = false, const unsigned int seed = 0) :
 				letter_scores_(letter_scores),
 				valid_words_(valid_words),
 				board_dimension_(board_dimension),
-				verbose_(verbose) {
+				verbose_(verbose),
+				seed_(seed) {
 			init();
 		}
 
-		Game(std::set<std::string> valid_words, size_type board_dimension, bool verbose = false) :
+		Game(std::set<std::string> valid_words, const size_type board_dimension, const bool verbose = false, const unsigned int seed = 0) :
 				valid_words_(valid_words),
 				board_dimension_(board_dimension),
-				verbose_(verbose) {
+				verbose_(verbose),
+				seed_(seed) {
 
 			// Calculate letter scores.
 			letter_tally letter_counts{};
@@ -130,7 +132,8 @@ namespace halfred {
 			hal_available_letter_counts_ = other.hal_available_letter_counts_;
 			person_score_ = other.person_score_;
 			hal_score_ = other.hal_score_;
-			random_bit_gen_ = std::mt19937(random_dev_());
+			seed_ = other.seed_;
+			random_bit_gen_ = other.random_bit_gen_;
 			random_letter_dist_ = other.random_letter_dist_;
 			return *this;
 		}
@@ -281,10 +284,11 @@ namespace halfred {
 		letter_tally letter_scores_;
 		size_type board_dimension_;
 		bool verbose_;
+		unsigned int seed_;
 
 		std::vector<std::vector<char>> board_;
 		std::array<float, letter_space_size + 1> letter_weights_;
-		std::random_device random_dev_;
+		std::random_device random_dev_{};
 		std::mt19937 random_bit_gen_;
 		std::uniform_real_distribution<float> random_letter_dist_;
 
@@ -301,7 +305,7 @@ namespace halfred {
 			// Let blank tiles have a weight equal to the average of all letters.
 			float z_weight = letter_weights_.at(letter_space_size - 1);
 			letter_weights_.back() = z_weight + (z_weight / letter_space_size);
-			random_bit_gen_ = std::mt19937(random_dev_());
+			random_bit_gen_ = std::mt19937{seed_ > 0 ? seed_ : random_dev_()};
 			random_letter_dist_ = std::uniform_real_distribution<float>{0.f, letter_weights_.back()};
 
 			person_score_ = 0;

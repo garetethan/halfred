@@ -77,6 +77,7 @@ namespace halfred {
 		std::swap(first.hal_available_letter_counts_, second.hal_available_letter_counts_);
 		std::swap(first.person_score_, second.person_score_);
 		std::swap(first.hal_score_, second.hal_score_);
+		std::swap(first.seed_, second.seed_);
 		// random_dev_ is omitted here because std::random_device is not swappable.
 		std::swap(first.random_bit_gen_, second.random_bit_gen_);
 		std::swap(first.random_letter_dist_, second.random_letter_dist_);

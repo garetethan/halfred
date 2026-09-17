@@ -33,7 +33,12 @@ const ConstructorFixture constructor_fixture{};
 class GameFixture : public Game {
 	public:
 	// We can't have a member variable that's an instance of ConstructorFixture, because the Game parent class would be initialized before our member variable (and therefore be constructed with garbage values).
-	GameFixture() : Game{constructor_fixture.valid_words, constructor_fixture.letter_scores, constructor_fixture.board_dimension} {}
+	GameFixture(unsigned int seed = 0) : Game{constructor_fixture.valid_words, constructor_fixture.letter_scores, constructor_fixture.board_dimension, false, seed} {}
+};
+
+class SeededGameFixture : public GameFixture {
+	public:
+	SeededGameFixture() : GameFixture{42} {}
 };
 
 BOOST_AUTO_TEST_CASE(test_lower) {
@@ -93,4 +98,9 @@ BOOST_FIXTURE_TEST_CASE(test_parse_location_bad, GameFixture) {
 	const std::string bad_location{"foo"};
 	parse_location(p, bad_location);
 	BOOST_TEST(p.row >= board_dimension());
+}
+
+BOOST_FIXTURE_TEST_CASE(test_seed, SeededGameFixture) {
+	// Braces initialize to all zeros.
+	BOOST_TEST(random_letter_as_index() == 5);
 }
