@@ -1,5 +1,6 @@
 #define BOOST_TEST_MODULE test_halfred
 
+#include <iostream>
 #include <numeric>
 
 #include <boost/test/included/unit_test.hpp>
@@ -10,35 +11,52 @@ using namespace halfred;
 
 class PlayGameFixture {
 	public:
-	const std::string valid_words_path = "../data/main.txt";
-	const std::string letter_scores_path = "../data/letter_scores.txt";
+	static const std::string valid_words_path;
+	static const std::string letter_scores_path;
 };
+const std::string PlayGameFixture::valid_words_path = "../test/data/valid_words.txt";
+const std::string PlayGameFixture::letter_scores_path = "../test/data/letter_scores.txt";
 
 class ConstructorFixture {
 	public:
-	const std::set<std::string> valid_words{"foo", "bar"};
-	Game::letter_tally letter_scores{};
-	static constexpr unsigned int board_dimension = 12;
-
 	ConstructorFixture () {
-		// letter_scores = {0, 1, 2, ...}
-		for (size_type i = 0; i < letter_scores.size(); ++i) {
-			letter_scores.at(i) = i;
+		std::ifstream valid_words_file = defensively_open(PlayGameFixture::valid_words_path);
+		std::string word;
+		while (valid_words_file >> word) {
+			valid_words_.insert(word);
+		}
+		std::ifstream letter_scores_file = defensively_open(PlayGameFixture::letter_scores_path);
+		for (unsigned int& score : letter_scores_) {
+			letter_scores_file >> score;
 		}
 	}
+
+	const std::set<std::string>& valid_words() const noexcept {
+		return valid_words_;
+	}
+	const Game::letter_tally& letter_scores() const noexcept {
+		return letter_scores_;
+	}
+
+	static constexpr unsigned int board_dimension = 12;
+	static constexpr unsigned int seed = 42;
+
+	protected:
+	std::set<std::string> valid_words_;
+	Game::letter_tally letter_scores_;
 };
 
 const ConstructorFixture constructor_fixture{};
 
 class GameFixture : public Game {
 	public:
-	// We can't have a member variable that's an instance of ConstructorFixture, because the Game parent class would be initialized before our member variable (and therefore be constructed with garbage values).
-	GameFixture(unsigned int seed = 0) : Game{constructor_fixture.valid_words, constructor_fixture.letter_scores, constructor_fixture.board_dimension, false, seed} {}
+	// We can't have a data member in this class that's an instance of ConstructorFixture, because the Game parent class would be initialized before our data member (and therefore be constructed with garbage values).
+	GameFixture(unsigned int seed = 0) : Game{constructor_fixture.valid_words(), constructor_fixture.letter_scores(), ConstructorFixture::board_dimension, false, ConstructorFixture::seed} {}
 };
 
 class SeededGameFixture : public GameFixture {
 	public:
-	SeededGameFixture() : GameFixture{42} {}
+	SeededGameFixture() : GameFixture{ConstructorFixture::seed} {}
 };
 
 BOOST_AUTO_TEST_CASE(test_lower) {
@@ -54,14 +72,14 @@ BOOST_AUTO_TEST_CASE(test_upper) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_game_constructor, ConstructorFixture) {
-	Game game{valid_words, board_dimension, false};
-	BOOST_TEST(game.valid_words().size() == valid_words.size());
+	Game game{valid_words(), board_dimension, false};
+	BOOST_TEST(game.valid_words().size() == valid_words().size());
 	BOOST_TEST(game.board_dimension() == board_dimension);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_game_constructor_with_letter_scores, ConstructorFixture) {
-	Game game{valid_words, letter_scores, board_dimension, false};
-	BOOST_TEST(game.valid_words().size() == valid_words.size());
+	Game game{valid_words(), letter_scores(), board_dimension, false};
+	BOOST_TEST(game.valid_words().size() == valid_words().size());
 	BOOST_TEST(game.letter_scores().at(7) == 7);
 	BOOST_TEST(game.board_dimension() == board_dimension);
 }
