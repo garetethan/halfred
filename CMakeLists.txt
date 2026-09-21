@@ -8,7 +8,11 @@ add_executable(halfred src/app.cpp src/halfred.cpp)
 target_include_directories(halfred PRIVATE "${PROJECT_SOURCE_DIR}/include")
 target_link_libraries(halfred PRIVATE Boost::program_options)
 
-add_executable(test_game test/test_halfred.cpp src/halfred.cpp)
+add_executable(test_board test/test_board.cpp src/halfred.cpp)
+target_include_directories(test_board PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_link_libraries(test_board PRIVATE Boost::unit_test_framework)
+
+add_executable(test_game test/test_game.cpp src/halfred.cpp)
 target_include_directories(test_game PRIVATE "${PROJECT_SOURCE_DIR}/include")
 target_link_libraries(test_game PRIVATE Boost::unit_test_framework)
 

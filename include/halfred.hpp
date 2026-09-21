@@ -83,12 +83,8 @@ namespace halfred {
 		static constexpr size_type rack_size = 8;
 		static constexpr char empty = '_';
 		static constexpr char wild = '*';
-<<<<<<< HEAD
-		// This limit has been chosen because it is the greatest multiple of 8 less than the number of letters in the English alphabet.
-=======
 		// This limit must be less than the number of letters in the English alphabet, lest we run out of column indexes when printing the board
 		// 24 was chosen because it's a multiple of 8
->>>>>>> 0dcec83 (board fixup)
 		static constexpr size_type max_board_dimension = 24;
 
 		// Defined outside of the class body.
