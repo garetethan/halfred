@@ -1,4 +1,4 @@
-#define BOOST_TEST_MODULE test_halfred
+#define BOOST_TEST_MODULE test_halfred_game
 
 #include <iostream>
 #include <numeric>
@@ -58,18 +58,6 @@ class SeededGameFixture : public GameFixture {
 	public:
 	SeededGameFixture() : GameFixture{ConstructorFixture::seed} {}
 };
-
-BOOST_AUTO_TEST_CASE(test_lower) {
-	const char letter = 'H';
-	const char actual = lower(letter);
-	BOOST_TEST(actual == 'h');
-}
-
-BOOST_AUTO_TEST_CASE(test_upper) {
-	const char letter = 'h';
-	const char actual = upper(letter);
-	BOOST_TEST(actual == 'H');
-}
 
 BOOST_FIXTURE_TEST_CASE(test_game_constructor, ConstructorFixture) {
 	Game game{valid_words(), board_dimension, false};
