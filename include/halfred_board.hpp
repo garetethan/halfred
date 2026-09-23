@@ -11,37 +11,67 @@ namespace halfred {
 	template <typename T>
 	class BoardLine;
 	template <typename T>
-	class RandomAccessIterator;
+	class ContiguousIterator;
 
 	template <typename T, size_type N>
 	class Board {
 		public:
-		Board() : board_() {}
-
-		Board(const T& fill_val) {
+		Board(const T& fill_val) : board_(), rows_(), columns_() {
 			board_.fill(fill_val);
+			init();
 		}
 
-		Board(const std::array<T, N * N>& board) : board_(board) {}
+		Board(const std::array<T, N * N>& board) : board_(board), rows_(), columns_() {
+			init();
+		}
+
+		Board() : board_(), rows_(), columns_() {
+			init();
+		}
+
+		void init() {
+			for (size_type row_i = 0; row_i < N; ++row_i) {
+				rows_.at(row_i) = BoardLine<T>{&at(row_i, 0), N, 1};
+			}
+			for (size_type col_i = 0; col_i < N; ++col_i) {
+				columns_.at(col_i) = BoardLine<T>{&at(0, col_i), N, N};
+			}
+		}
 
 		T& at(size_type row, size_type col) {
 			return board_.at(row * N + col);
 		}
 
-		RandomAccessIterator<T> begin() {
-			return RandomAccessIterator<BoardLine<T>>{BoardLine{at(0, 0)}, N, 1};
+		ContiguousIterator<BoardLine<T>> begin() {
+			return rows_begin();
 		}
 
-		RandomAccessIterator<T> end() {
-			return begin() + N;
+		ContiguousIterator<BoardLine<T>> end() {
+			return rows_end();
+		}
+
+		ContiguousIterator<BoardLine<T>> rows_begin() {
+			return ContiguousIterator<BoardLine<T>>{&rows_.at(0), 1};
+		}
+
+		ContiguousIterator<BoardLine<T>> rows_end() {
+			return rows_begin() + N;
+		}
+
+		ContiguousIterator<BoardLine<T>> cols_begin() {
+			return ContiguousIterator<BoardLine<T>>{&columns_.at(0), 1};
+		}
+
+		ContiguousIterator<BoardLine<T>> cols_end() {
+			return cols_begin() + N;
 		}
 
 		BoardLine<T> row(size_type index) {
-			return BoardLine{at(index, 0), N, 1};
+			return rows_.at(index);
 		}
 
 		BoardLine<T> col(size_type index) {
-			return BoardLine{at(0, index), N, N};
+			return columns_.at(index);
 		}
 
 		static constexpr size_type size() noexcept {
@@ -50,19 +80,24 @@ namespace halfred {
 
 		protected:
 		std::array<T, N * N> board_;
+		std::array<BoardLine<T>, N> rows_;
+		std::array<BoardLine<T>, N> columns_;
 	};
 
 	// A board line is either a row or column of the board
 	template <typename T>
 	class BoardLine {
 		public:
-		BoardLine(T& start, const size_type size, const std::ptrdiff_t stride) : start_(start), size_(size), stride_(stride) {}
+		BoardLine(T* start, const size_type size, const std::ptrdiff_t stride) : start_(start), size_(size), stride_(stride) {}
 
-		RandomAccessIterator<T> begin() {
-			return RandomAccessIterator<T>{&start_, stride_};
+		// Calling any member functions of a default-constructed board line causes undefined behavior
+		BoardLine() : start_(nullptr), size_(0), stride_(0) {}
+
+		ContiguousIterator<T> begin() {
+			return ContiguousIterator<T>{start_, stride_};
 		}
 
-		RandomAccessIterator<T> end() {
+		ContiguousIterator<T> end() {
 			return begin() + size_;
 		}
 
@@ -71,17 +106,17 @@ namespace halfred {
 		}
 
 		protected:
-		T& start_;
-		const size_type size_;
+		T* start_;
+		size_type size_;
 		std::ptrdiff_t stride_;
 	};
 
 	template <typename T>
-	class RandomAccessIterator : public boost::iterator_facade<RandomAccessIterator<T>, T, boost::random_access_traversal_tag> {
+	class ContiguousIterator : public boost::iterator_facade<ContiguousIterator<T>, T, boost::random_access_traversal_tag> {
 		public:
-		explicit RandomAccessIterator(T* item_ptr, std::ptrdiff_t stride) : item_ptr_(item_ptr), stride_(stride) {}
+		explicit ContiguousIterator(T* item_ptr, std::ptrdiff_t stride) : item_ptr_(item_ptr), stride_(stride) {}
 		// Calling any member functions of a default-constructed iterator causes undefined behavior
-		RandomAccessIterator() : item_ptr_(nullptr), stride_(0) {}
+		ContiguousIterator() : item_ptr_(nullptr), stride_(0) {}
 
 		protected:
 		friend class boost::iterator_core_access;
@@ -93,7 +128,7 @@ namespace halfred {
 			return *item_ptr_;
 		}
 
-		bool equal(const RandomAccessIterator& other) const {
+		bool equal(const ContiguousIterator& other) const {
 			return item_ptr_ == other.item_ptr_;
 		}
 
@@ -109,7 +144,7 @@ namespace halfred {
 			item_ptr_ += stride_ * n;
 		}
 
-		std::ptrdiff_t distance_to(const RandomAccessIterator& other) const {
+		std::ptrdiff_t distance_to(const ContiguousIterator& other) const {
 			return (other.item_ptr_ - item_ptr_) / stride_;
 		}
 	};

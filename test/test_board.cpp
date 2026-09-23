@@ -1,4 +1,11 @@
+// array
 #include <array>
+// stringstream
+#include <sstream>
+// string
+#include <string>
+// vector
+#include <vector>
 
 #include <boost/test/unit_test.hpp>
 
@@ -15,38 +22,55 @@ g | h | i
 */
 constexpr std::array<char, board_dimension * board_dimension> test_board = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'};
 
+template<typename T>
+std::string compare_vectors(const std::vector<T>& first, const std::vector<T>& second) {
+	auto first_it = first.begin();
+	auto second_it = second.begin();
+	std::stringstream output{"\n"};
+	while(first_it != first.end() && second_it != second.end()) {
+		if (*first_it == *second_it) {
+			output << "\t" << *first_it << " == " << *second_it << "\n";
+		}
+		else {
+			output << "\t" << *first_it << " != " << *second_it << "\n";
+		}
+		++first_it;
+		++second_it;
+	}
+	return output.str();
+}
+
 class LetterColumn {
 	public:
-	RandomAccessIterator<char> begin_;
-	RandomAccessIterator<char> end_;
+	ContiguousIterator<char> begin_;
+	ContiguousIterator<char> end_;
 
-	LetterColumn(RandomAccessIterator<char> begin, RandomAccessIterator<char> end) : begin_(begin), end_(end) {}
+	LetterColumn(ContiguousIterator<char> begin, ContiguousIterator<char> end) : begin_(begin), end_(end) {}
 	LetterColumn() {}
 
-	RandomAccessIterator<char> begin() {
+	ContiguousIterator<char> begin() {
 		return begin_;
 	}
-	RandomAccessIterator<char> end() {
+	ContiguousIterator<char> end() {
 		return end_;
 	}
 };
 
-class RandomAccessIteratorFixture {
+class ContiguousIteratorFixture {
 	public:
 	std::array<char, board_dimension * board_dimension> board_;
 	LetterColumn letter_column;
 
-	RandomAccessIteratorFixture() : board_(test_board) {
-		RandomAccessIterator begin{board_.begin(), board_dimension};
-		// Jump to the second column
-		begin++;
+	ContiguousIteratorFixture() : board_(test_board) {
+		ContiguousIterator begin{board_.begin() + 1, board_dimension};
+		// ContinguousIterator end{board_.begin() + 1, board_dimension}
 		letter_column = LetterColumn{begin, begin + board_dimension};
 	}
 };
 
 class BoardFixture {
 	public:
-	Board <char, board_dimension> board;
+	Board<char, board_dimension> board;
 
 	BoardFixture () : board(Board<char, board_dimension>{test_board}) {
 	}
@@ -54,16 +78,44 @@ class BoardFixture {
 
 BOOST_AUTO_TEST_SUITE(BoardTests)
 
-BOOST_FIXTURE_TEST_CASE(test_random_access_iterator_loop, RandomAccessIteratorFixture) {
-	size_type count = 0;
+BOOST_FIXTURE_TEST_CASE(test_contiguous_iterator_loop, ContiguousIteratorFixture) {
+	std::vector<char> expected{'b', 'e', 'h'};
+	std::vector<char> actual{};
 	for (char& letter : letter_column) {
+		actual.push_back(letter);
+	}
+	BOOST_TEST(actual == expected, compare_vectors(actual, expected));
+}
+
+BOOST_FIXTURE_TEST_CASE(test_board_line_loop, BoardFixture) {
+	std::vector<char> expected{'d', 'e', 'f'};
+	std::vector<char> actual{};
+	for (char& letter : board.row(1)) {
+		actual.push_back(letter);
+	}
+	BOOST_TEST(actual == expected, compare_vectors(actual, expected));
+}
+
+BOOST_FIXTURE_TEST_CASE(test_board_at, BoardFixture) {
+	BOOST_TEST(board.at(1, 2) == 'f');
+}
+
+BOOST_FIXTURE_TEST_CASE(test_board_loop_rows, BoardFixture) {
+	size_type count = 0;
+	for (BoardLine<char>& line : board) {
+		BOOST_TEST(line.size() == board_dimension);
 		++count;
 	}
 	BOOST_TEST(count == board_dimension);
 }
 
-BOOST_FIXTURE_TEST_CASE(test_board_at, BoardFixture) {
-	BOOST_TEST(board.at(1, 2) == 'f');
+BOOST_FIXTURE_TEST_CASE(test_board_loop_columns, BoardFixture) {
+	size_type count = 0;
+	for (ContiguousIterator<BoardLine<char>> it = board.cols_begin(); it != board.cols_end(); ++it) {
+		BOOST_TEST(it->size() == board_dimension);
+		++count;
+	}
+	BOOST_TEST(count == board_dimension);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_board_row, BoardFixture) {
