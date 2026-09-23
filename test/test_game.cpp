@@ -1,9 +1,9 @@
-#define BOOST_TEST_MODULE test_halfred_game
+#define BOOST_TEST_MODULE test_halfred
 
 #include <iostream>
 #include <numeric>
 
-#include <boost/test/included/unit_test.hpp>
+#include <boost/test/unit_test.hpp>
 
 #include <halfred.hpp>
 
@@ -59,6 +59,8 @@ class SeededGameFixture : public GameFixture {
 	SeededGameFixture() : GameFixture{ConstructorFixture::seed} {}
 };
 
+BOOST_AUTO_TEST_SUITE(GameTests)
+
 BOOST_FIXTURE_TEST_CASE(test_game_constructor, ConstructorFixture) {
 	Game game{valid_words(), board_dimension, false};
 	BOOST_TEST(game.valid_words().size() == valid_words().size());
@@ -110,3 +112,5 @@ BOOST_FIXTURE_TEST_CASE(test_seed, SeededGameFixture) {
 	// Braces initialize to all zeros.
 	BOOST_TEST(random_letter_as_index() == 5);
 }
+
+BOOST_AUTO_TEST_SUITE_END()

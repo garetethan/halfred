@@ -1,8 +1,6 @@
-#define BOOST_TEST_MODULE test_halfred_board
-
 #include <array>
 
-#include <boost/test/included/unit_test.hpp>
+#include <boost/test/unit_test.hpp>
 
 #include <halfred.hpp>
 
@@ -54,6 +52,8 @@ class BoardFixture {
 	}
 };
 
+BOOST_AUTO_TEST_SUITE(BoardTests)
+
 BOOST_FIXTURE_TEST_CASE(test_random_access_iterator_loop, RandomAccessIteratorFixture) {
 	size_type count = 0;
 	for (char& letter : letter_column) {
@@ -73,3 +73,5 @@ BOOST_FIXTURE_TEST_CASE(test_board_row, BoardFixture) {
 BOOST_FIXTURE_TEST_CASE(test_board_col, BoardFixture) {
 	BOOST_TEST(*(board.col(1).begin() + 1) == 'e');
 }
+
+BOOST_AUTO_TEST_SUITE_END()
