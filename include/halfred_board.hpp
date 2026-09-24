@@ -28,7 +28,7 @@ namespace halfred {
 		Board(const std::vector<T>& board) : board_dimension_(std::sqrt(board.size())), board_(board), rows_(), columns_() {
 			// Check that the given board is square
 			if (board_dimension_ * board_dimension_ != board_.size()) {
-				std::stringstream message{}
+				std::stringstream message{};
 				message << "Requested a board of size " << board_.size() << ", which is not a perfect square.\n";
 				throw std::runtime_error{message.str()};
 			}
@@ -52,7 +52,15 @@ namespace halfred {
 			return board_.at(row * board_dimension_ + col);
 		}
 
+		const T& at(size_type row, size_type col) const {
+			return board_.at(row * board_dimension_ + col);
+		}
+
 		ContiguousIterator<BoardLine<T>> begin() {
+			return rows_begin();
+		}
+
+		ContiguousIterator<const BoardLine<T>> begin() const {
 			return rows_begin();
 		}
 
@@ -60,11 +68,23 @@ namespace halfred {
 			return rows_end();
 		}
 
+		ContiguousIterator<const BoardLine<T>> end() const {
+			return rows_end();
+		}
+
 		ContiguousIterator<BoardLine<T>> rows_begin() {
 			return ContiguousIterator<BoardLine<T>>{&rows_.at(0), 1};
 		}
 
+		ContiguousIterator<const BoardLine<T>> rows_begin() const {
+			return ContiguousIterator<const BoardLine<T>>{&rows_.at(0), 1};
+		}
+
 		ContiguousIterator<BoardLine<T>> rows_end() {
+			return rows_begin() + board_dimension_;
+		}
+
+		ContiguousIterator<const BoardLine<T>> rows_end() const {
 			return rows_begin() + board_dimension_;
 		}
 
@@ -72,19 +92,35 @@ namespace halfred {
 			return ContiguousIterator<BoardLine<T>>{&columns_.at(0), 1};
 		}
 
+		ContiguousIterator<const BoardLine<T>> cols_begin() const {
+			return ContiguousIterator<const BoardLine<T>>{&columns_.at(0), 1};
+		}
+
 		ContiguousIterator<BoardLine<T>> cols_end() {
 			return cols_begin() + board_dimension_;
 		}
 
-		BoardLine<T> row(size_type index) {
+		ContiguousIterator<const BoardLine<T>> cols_end() const {
+			return cols_begin() + board_dimension_;
+		}
+
+		BoardLine<T>& row(size_type index) {
 			return rows_.at(index);
 		}
 
-		BoardLine<T> col(size_type index) {
+		const BoardLine<T>& row(size_type index) const {
+			return rows_.at(index);
+		}
+
+		BoardLine<T>& col(size_type index) {
 			return columns_.at(index);
 		}
 
-		static constexpr size_type size() noexcept {
+		const BoardLine<T>& col(size_type index) const {
+			return columns_.at(index);
+		}
+
+		size_type size() const noexcept {
 			return board_dimension_ * board_dimension_;
 		}
 
@@ -104,11 +140,27 @@ namespace halfred {
 		// Calling any member functions of a default-constructed board line causes undefined behavior
 		BoardLine() : start_(nullptr), size_(0), stride_(0) {}
 
+		T& at(size_type index) {
+			return *(start_ + index * stride_);
+		}
+
+		const T& at(size_type index) const {
+			return *(start_ + index * stride_);
+		}
+
 		ContiguousIterator<T> begin() {
 			return ContiguousIterator<T>{start_, stride_};
 		}
 
+		ContiguousIterator<const T> begin() const {
+			return ContiguousIterator<const T>{start_, stride_};
+		}
+
 		ContiguousIterator<T> end() {
+			return begin() + size_;
+		}
+
+		ContiguousIterator<const T> end() const {
 			return begin() + size_;
 		}
 
