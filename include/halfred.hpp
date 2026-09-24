@@ -34,10 +34,15 @@
 namespace halfred {
 	using size_type = unsigned int;
 
+	struct Play;
+	class Game;
+
 	// Defined in halfred.cpp.
 	int play_game(std::string valid_words_path, std::string letter_scores_path = "", const size_type board_dimension = 16, const bool verbose = false, std::istream& in = std::cin, std::ostream& out = std::cout);
 	std::ifstream defensively_open(const std::string path);
 	std::string get_input(const std::string prompt, std::istream& in = std::cin, std::ostream& out = std::cout);
+	size_type letter_to_index(char le);
+	char index_to_letter(size_type ind);
 	char lower(const char up);
 	char upper(const char lo);
 
@@ -68,13 +73,19 @@ namespace halfred {
 	static constexpr size_type letter_space_size = 26;
 	using letter_tally = std::array<unsigned int, letter_space_size + 1>;
 
-	struct play {
+	struct Play {
 		size_type row;
 		size_type col;
 		bool across;
 		std::string word;
 		int score;
 		letter_tally letters_used;
+
+		std::string to_string() {
+			std::stringstream output{};
+			output << "Play \"" << word << "\" at " << row << index_to_letter(col) << " " << (across ? "across" : "down") << " for a score of " << score << ".\n";
+			return output.str();
+		}
 	};
 
 	class Game {
@@ -88,7 +99,7 @@ namespace halfred {
 		static constexpr size_type max_board_dimension = 24;
 
 		// Defined outside of the class body.
-		static const play null_play;
+		static const Play null_play;
 		static const std::regex valid_location_pattern;
 
 		// Attempting to use a default initialized Game causes undefined behaviour
@@ -159,7 +170,7 @@ namespace halfred {
 			StreamHandler{in};
 			StreamHandler{out};
 			std::string person_word;
-			play person_play = null_play;
+			Play person_play = null_play;
 			while (person_play.score < 0) {
 				get_word(person_play, in, out);
 				// An underscore means the person is giving up on spelling any more words.
@@ -180,7 +191,7 @@ namespace halfred {
 
 		int computer_turn(std::ostream& out = std::cout) {
 			StreamHandler{out};
-			play hal_play = best_overall();
+			Play hal_play = best_overall();
 			if (hal_play.score < 1) {
 				out << "Halfred does not see any possible plays. How about you?" << std::endl << std::endl;
 				return false;
@@ -348,7 +359,7 @@ namespace halfred {
 		}
 
 		// Get a location from the player that could be valid (depending on the board dimension).
-		void parse_location(play& p, std::string location) {
+		void parse_location(Play& p, std::string location) {
 			std::smatch location_match{};
 			if (regex_match(location, location_match, valid_location_pattern)) {
 				// Has no reason to throw, since regex ensures it is just digits.
@@ -363,16 +374,16 @@ namespace halfred {
 		}
 
 		// Find the best valid play anywhere on the board.
-		play best_overall() {
-			play best_option = null_play;
-			for (size_type row_i = 0; row_i < board_dimension_; ++row_i) {
+		Play best_overall() {
+			Play best_option = null_play;
+			for (size_type i = 0; i < board_dimension_; ++i) {
 				// Best in row.
-				play option = best_in_line(row_i, true);
+				Play option = best_in_line(i, true);
 				if (option.score > best_option.score) {
 					best_option = option;
 				}
 				// Best in col.
-				option = best_in_line(row_i, false);
+				option = best_in_line(i, false);
 				if (option.score > best_option.score) {
 					best_option = option;
 				}
@@ -382,7 +393,7 @@ namespace halfred {
 
 		// Determine and return the best possible valid play in a row.
 		// is_row = false for a column.
-		play best_in_line(size_type line_index, bool is_row = true) {
+		Play best_in_line(size_type line_index, bool is_row = true) {
 			BoardLine<char>& board_line = is_row ? board_.row(line_index) : board_.col(line_index);
 			std::map<size_type, char> row_letters{};
 			for (size_type i = 0; i < board_dimension_; ++i) {
@@ -391,7 +402,7 @@ namespace halfred {
 				}
 			}
 
-			play best_option = null_play;
+			Play best_option = null_play;
 			for (const auto& index_letter_pair : row_letters) {
 				size_type index_in_row = index_letter_pair.first;
 				char letter = index_letter_pair.second;
@@ -401,7 +412,7 @@ namespace halfred {
 						auto word_start = board_line.begin() + index_in_row - pos;
 						auto word_end = word_start + word.size();
 						if (word_start >= board_line.begin() && word_start < board_line.end() && word_end <= board_line.end()) {
-							play p = null_play;
+							Play p = null_play;
 							p.word = word;
 							if (is_row) {
 								p.row = line_index;
@@ -425,7 +436,7 @@ namespace halfred {
 			return best_option;
 		}
 
-		void apply_play(play& p, letter_tally& available_letter_counts, unsigned int& score) {
+		void apply_play(Play& p, letter_tally& available_letter_counts, unsigned int& score) {
 			for (size_type i = 0; i < letter_space_size + 1; ++i) {
 				available_letter_counts.at(i) -= p.letters_used.at(i);
 			}
@@ -444,7 +455,7 @@ namespace halfred {
 			draw_letters(available_letter_counts, std::accumulate(p.letters_used.begin(), p.letters_used.end(), 0));
 		}
 
-		std::string evaluate_play(play& p, const letter_tally& available_letter_counts) {
+		std::string evaluate_play(Play& p, const letter_tally& available_letter_counts) {
 			p.score = 0;
 
 			if ((p.across
@@ -562,7 +573,7 @@ namespace halfred {
 				return "It would not be touching any other words already on the board.";
 			}
 			// The only happy exit.
-			return "";
+			return "Valid play.";
 		}
 
 		std::stringstream& output_column_indexes(std::stringstream& out) const {
@@ -574,7 +585,7 @@ namespace halfred {
 			return out;
 		}
 
-		void get_word(play& p, std::istream& in = std::cin, std::ostream& out = std::cout) {
+		void get_word(Play& p, std::istream& in = std::cin, std::ostream& out = std::cout) {
 			p.word = get_input("What word do you want to play?", in, out);
 			// The person is giving up on spelling any more words.
 			if (p.word == "_") {
@@ -587,7 +598,7 @@ namespace halfred {
 			}
 		}
 
-		void get_location(play& p, std::istream& in = std::cin, std::ostream& out = std::cout) {
+		void get_location(Play& p, std::istream& in = std::cin, std::ostream& out = std::cout) {
 			parse_location(p, get_input("Where do you want to play the word?", in, out));
 			if (p.row >= board_dimension_ || p.col >= board_dimension_) {
 				out << "Invalid location. Input the row integer (1-indexed), column letter (lowercase), and direction letter (either 'a' for 'across' or 'd' for 'down') without any separating characters. For example: 11gd" << std::endl;
@@ -595,8 +606,6 @@ namespace halfred {
 			}
 		}
 
-		static size_type letter_to_index(char le);
-		static char index_to_letter(size_type ind);
 	};
 
 	void swap(Game& first, Game& second);

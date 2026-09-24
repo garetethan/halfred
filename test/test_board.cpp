@@ -1,13 +1,10 @@
-// stringstream
-#include <sstream>
-// string
-#include <string>
 // vector
 #include <vector>
 
 #include <boost/test/unit_test.hpp>
 
 #include <halfred.hpp>
+#include <test_helpers.hpp>
 
 using namespace halfred;
 
@@ -19,24 +16,6 @@ d | e | f
 g | h | i
 */
 const std::vector<char> test_board = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'};
-
-template<typename T>
-std::string compare_vectors(const std::vector<T>& first, const std::vector<T>& second) {
-	auto first_it = first.begin();
-	auto second_it = second.begin();
-	std::stringstream output{"\n"};
-	while(first_it != first.end() && second_it != second.end()) {
-		if (*first_it == *second_it) {
-			output << "\t" << *first_it << " == " << *second_it << "\n";
-		}
-		else {
-			output << "\t" << *first_it << " != " << *second_it << "\n";
-		}
-		++first_it;
-		++second_it;
-	}
-	return output.str();
-}
 
 class LetterColumn {
 	public:
@@ -82,7 +61,7 @@ BOOST_FIXTURE_TEST_CASE(test_contiguous_iterator_loop, ContiguousIteratorFixture
 	for (char& letter : letter_column) {
 		actual.push_back(letter);
 	}
-	BOOST_TEST(actual == expected, compare_vectors(actual, expected));
+	BOOST_TEST(actual == expected, compare_iterables(actual, expected));
 }
 
 BOOST_FIXTURE_TEST_CASE(test_board_line_at, BoardFixture) {
@@ -96,7 +75,7 @@ BOOST_FIXTURE_TEST_CASE(test_board_line_loop, BoardFixture) {
 	for (char& letter : board_.row(1)) {
 		actual.push_back(letter);
 	}
-	BOOST_TEST(actual == expected, compare_vectors(actual, expected));
+	BOOST_TEST(actual == expected, compare_iterables(actual, expected));
 }
 
 BOOST_FIXTURE_TEST_CASE(test_board_at, BoardFixture) {

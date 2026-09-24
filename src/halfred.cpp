@@ -16,6 +16,7 @@
 #include <halfred.hpp>
 
 namespace halfred {
+
 	char lower(const char up) {
 		return static_cast<char>(std::tolower(static_cast<unsigned char>(up)));
 	}
@@ -49,19 +50,19 @@ namespace halfred {
 		return input;
 	}
 
-	const play Game::null_play{0, 0, true, "", -1, letter_tally{}};
+	const Play Game::null_play{0, 0, true, "", -1, letter_tally{}};
 	const std::regex Game::valid_location_pattern{"^(\\d+)([A-Za-z])([ADad])$"};
 
-	size_type Game::letter_to_index(char le) {
-		if (le == wild) {
+	size_type letter_to_index(char le) {
+		if (le == Game::wild) {
 			return letter_space_size;
 		}
 		return static_cast<size_type>(le) - Game::lowercase_offset;
 	}
 
-	char Game::index_to_letter(size_type ind) {
+	char index_to_letter(size_type ind) {
 		if (ind == letter_space_size) {
-			return wild;
+			return Game::wild;
 		}
 		return static_cast<char>(ind + Game::lowercase_offset);
 	}
@@ -87,7 +88,7 @@ namespace halfred {
 		for (char& ch : word) {
 			ch = lower(ch);
 			// letter_to_index assumes the char is lowercase ASCII, so underflow may occur here.
-			if (Game::letter_to_index(ch) >= letter_space_size) {
+			if (letter_to_index(ch) >= letter_space_size) {
 				return "";
 			}
 		}

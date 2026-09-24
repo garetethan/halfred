@@ -9,5 +9,5 @@ target_include_directories(halfred PRIVATE "${PROJECT_SOURCE_DIR}/include")
 target_link_libraries(halfred PRIVATE Boost::program_options)
 
 add_executable(test_halfred test/test_board.cpp test/test_game.cpp test/test_other.cpp src/halfred.cpp)
-target_include_directories(test_halfred PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_include_directories(test_halfred PRIVATE "${PROJECT_SOURCE_DIR}/include" "${PROJECT_SOURCE_DIR}/test/include")
 target_link_libraries(test_halfred PRIVATE Boost::unit_test_framework)
