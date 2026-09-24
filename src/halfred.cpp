@@ -49,18 +49,18 @@ namespace halfred {
 		return input;
 	}
 
-	const Game::play Game::null_play{0, 0, true, "", -1, Game::letter_tally{}};
+	const play Game::null_play{0, 0, true, "", -1, letter_tally{}};
 	const std::regex Game::valid_location_pattern{"^(\\d+)([A-Za-z])([ADad])$"};
 
 	size_type Game::letter_to_index(char le) {
 		if (le == wild) {
-			return Game::letter_space_size;
+			return letter_space_size;
 		}
 		return static_cast<size_type>(le) - Game::lowercase_offset;
 	}
 
 	char Game::index_to_letter(size_type ind) {
-		if (ind == Game::letter_space_size) {
+		if (ind == letter_space_size) {
 			return wild;
 		}
 		return static_cast<char>(ind + Game::lowercase_offset);
@@ -87,7 +87,7 @@ namespace halfred {
 		for (char& ch : word) {
 			ch = lower(ch);
 			// letter_to_index assumes the char is lowercase ASCII, so underflow may occur here.
-			if (Game::letter_to_index(ch) >= Game::letter_space_size) {
+			if (Game::letter_to_index(ch) >= letter_space_size) {
 				return "";
 			}
 		}
@@ -124,11 +124,11 @@ namespace halfred {
 		else {
 			std::ifstream letter_scores_file = defensively_open(letter_scores_path);
 			StreamHandler{letter_scores_file};
-			Game::letter_tally letter_scores;
+			letter_tally letter_scores;
 			for (unsigned int& score : letter_scores) {
 				letter_scores_file >> score;
 				if (!letter_scores_file) {
-					out << "Error: " << letter_scores_path << " contains fewer than " << Game::letter_space_size << " letter scores." << std::endl;
+					out << "Error: " << letter_scores_path << " contains fewer than " << letter_space_size << " letter scores." << std::endl;
 					return 1;
 				}
 			}

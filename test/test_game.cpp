@@ -34,7 +34,7 @@ class ConstructorFixture {
 	const std::set<std::string>& valid_words() const noexcept {
 		return valid_words_;
 	}
-	const Game::letter_tally& letter_scores() const noexcept {
+	const letter_tally& letter_scores() const noexcept {
 		return letter_scores_;
 	}
 
@@ -43,7 +43,7 @@ class ConstructorFixture {
 
 	protected:
 	std::set<std::string> valid_words_;
-	Game::letter_tally letter_scores_;
+	letter_tally letter_scores_;
 };
 
 const ConstructorFixture constructor_fixture{};
@@ -81,7 +81,7 @@ BOOST_FIXTURE_TEST_CASE(test_board_occupied_count, GameFixture) {
 BOOST_FIXTURE_TEST_CASE(test_random_letter_as_index, GameFixture) {
 	const unsigned int index = random_letter_as_index();
 	BOOST_TEST(index >= 0);
-	BOOST_TEST(index <= Game::letter_space_size);
+	BOOST_TEST(index <= letter_space_size);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_draw_letters, GameFixture) {
