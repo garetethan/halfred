@@ -37,7 +37,7 @@ namespace halfred {
 	struct Play;
 	class Game;
 
-	// Defined in halfred.cpp.
+	// Defined in halfred.cpp
 	int play_game(std::string valid_words_path, std::string letter_scores_path = "", const size_type board_dimension = 16, const bool verbose = false, std::istream& in = std::cin, std::ostream& out = std::cout);
 	std::ifstream defensively_open(const std::string path);
 	std::string get_input(const std::string prompt, std::istream& in = std::cin, std::ostream& out = std::cout);
@@ -49,7 +49,7 @@ namespace halfred {
 	class StreamHandler {
 		public:
 		StreamHandler(std::ios& stream) : stream_(stream), exceptions_(stream_.exceptions()), width_(stream_.width()) {
-			// Throw on error rather than setting error bits.
+			// Throw on error rather than setting error bits
 			stream_.exceptions(std::ios::failbit | std::ios::badbit);
 		}
 		~StreamHandler() {
@@ -97,8 +97,10 @@ namespace halfred {
 		// This limit must be less than the number of letters in the English alphabet, lest we run out of column indexes when printing the board
 		// 24 was chosen because it's a multiple of 8
 		static constexpr size_type max_board_dimension = 24;
+		static constexpr std::array<bool, letter_space_size> true_cross_checks = filled_array<letter_space_size>(true);
+		static constexpr std::array<bool, letter_space_size> false_cross_checks = filled_array<letter_space_size>(false);
 
-		// Defined outside of the class body.
+		// Defined outside of the class body
 		static const Play null_play;
 		static const std::regex valid_location_pattern;
 
@@ -110,6 +112,10 @@ namespace halfred {
 				valid_words_(valid_words),
 				board_dimension_(board_dimension),
 				board_(board_dimension, empty),
+				cross_checks_horizontal_(board_dimension, true_cross_checks),
+				cross_checks_vertical_(board_dimension, true_cross_checks),
+				partial_scores_horizontal_(board_dimension, 0),
+				partial_scores_vertical_(board_dimension, 0),
 				verbose_(verbose),
 				seed_(seed) {
 			init();
@@ -119,10 +125,14 @@ namespace halfred {
 				valid_words_(valid_words),
 				board_dimension_(board_dimension),
 				board_(board_dimension * board_dimension_, empty),
+				cross_checks_horizontal_(board_dimension, true_cross_checks),
+				cross_checks_vertical_(board_dimension, true_cross_checks),
+				partial_scores_horizontal_(board_dimension, 0),
+				partial_scores_vertical_(board_dimension, 0),
 				verbose_(verbose),
 				seed_(seed) {
 
-			// Calculate letter scores.
+			// Calculate letter scores
 			letter_tally letter_counts{};
 			unsigned int total_letters = 0;
 			for (const std::string& word : valid_words_) {
@@ -153,6 +163,10 @@ namespace halfred {
 			letter_weights_ = other.letter_weights_;
 			person_available_letter_counts_ = other.person_available_letter_counts_;
 			hal_available_letter_counts_ = other.hal_available_letter_counts_;
+			cross_checks_horizontal_ = other.cross_checks_horizontal_;
+			cross_checks_vertical_ = other.cross_checks_vertical_;
+			partial_scores_horizontal_ = other.partial_scores_horizontal_;
+			partial_scores_vertical_ = other.partial_scores_vertical_;
 			person_score_ = other.person_score_;
 			hal_score_ = other.hal_score_;
 			seed_ = other.seed_;
@@ -173,7 +187,7 @@ namespace halfred {
 			Play person_play = null_play;
 			while (person_play.score < 0) {
 				get_word(person_play, in, out);
-				// An underscore means the person is giving up on spelling any more words.
+				// An underscore means the person is giving up on spelling any more words
 				if (person_play.word == "_") {
 					return false;
 				}
@@ -201,7 +215,7 @@ namespace halfred {
 			return true;
 		}
 
-		// Return the number of occupied cells on the board.
+		// Return the number of occupied cells on the board
 		bool board_occupied_count() const {
 			size_type count = 0;
 			for (const BoardLine<char>& row : board_) {
@@ -310,6 +324,10 @@ namespace halfred {
 		unsigned int seed_;
 
 		Board<char> board_;
+		Board<std::array<bool, letter_space_size>> cross_checks_horizontal_;
+		Board<std::array<bool, letter_space_size>> cross_checks_vertical_;
+		Board<int> partial_scores_horizontal_;
+		Board<int> partial_scores_vertical_;
 		std::array<float, letter_space_size + 1> letter_weights_;
 		std::random_device random_dev_{};
 		std::mt19937 random_bit_gen_;
@@ -325,7 +343,7 @@ namespace halfred {
 			for (size_type i = 1; i < letter_space_size; ++i) {
 				letter_weights_.at(i) = letter_weights_.at(i - 1) + (1.f / std::max(letter_scores_.at(i), 1U));
 			}
-			// Let blank tiles have a weight equal to the average of all letters.
+			// Let blank tiles have a weight equal to the average of all letters
 			float z_weight = letter_weights_.at(letter_space_size - 1);
 			letter_weights_.back() = z_weight + (z_weight / letter_space_size);
 			random_bit_gen_ = std::mt19937{seed_ > 0 ? seed_ : random_dev_()};
@@ -351,38 +369,38 @@ namespace halfred {
 			return index;
 		}
 
-		// Randomly select tiles to be added to available letters.
+		// Randomly select tiles to be added to available letters
 		void draw_letters(letter_tally& counts, const unsigned int n) {
 			for (unsigned int i = 0; i < n; ++i) {
 				++counts.at(random_letter_as_index());
 			}
 		}
 
-		// Get a location from the player that could be valid (depending on the board dimension).
+		// Get a location from the player that could be valid (depending on the board dimension)
 		void parse_location(Play& p, const std::string location) {
 			std::smatch location_match{};
 			if (regex_match(location, location_match, valid_location_pattern)) {
-				// Has no reason to throw, since regex ensures it is just digits.
+				// Has no reason to throw, since regex ensures it is just digits
 				p.row = std::stoi(location_match[1].str()) - 1;
 				p.col = letter_to_index(location_match[2].str().front());
 				p.across = lower(location_match[3].str().front()) == 'a';
 			}
 			else {
-				// Purposefully invalid value.
+				// Purposefully invalid value
 				p.row = board_dimension_;
 			}
 		}
 
-		// Find the best valid play anywhere on the board.
+		// Find the best valid play anywhere on the board
 		Play best_overall() {
 			Play best_option = null_play;
 			for (size_type i = 0; i < board_dimension_; ++i) {
-				// Best in row.
+				// Best in row
 				Play option = best_in_line(i, true);
 				if (option.score > best_option.score) {
 					best_option = option;
 				}
-				// Best in col.
+				// Best in col
 				option = best_in_line(i, false);
 				if (option.score > best_option.score) {
 					best_option = option;
@@ -391,8 +409,8 @@ namespace halfred {
 			return best_option;
 		}
 
-		// Determine and return the best possible valid play in a row.
-		// is_row = false for a column.
+		// Determine and return the best possible valid play in a row
+		// is_row = false for a column
 		Play best_in_line(const size_type line_index, const bool is_row = true) {
 			BoardLine<char>& board_line = is_row ? board_.row(line_index) : board_.col(line_index);
 			std::map<size_type, char> row_letters{};
@@ -445,7 +463,7 @@ namespace halfred {
 					board_.at(p.row, p.col + pos) = p.word.at(pos);
 				}
 			}
-			// If played vertically.
+			// If played vertically
 			else {
 				for (size_type pos = 0; pos < p.word.size(); ++pos) {
 					board_.at(p.row + pos, p.col) = p.word.at(pos);
@@ -471,17 +489,17 @@ namespace halfred {
 			size_type row_i = p.row;
 			size_type col_i = p.col;
 			bool connects_to_existing = false;
-			// For every letter in the word being played.
+			// For every letter in the word being played
 			for (unsigned int word_i = 0; word_i < p.word.size(); ++word_i, p.across ? ++col_i : ++row_i) {
 				size_type letter_as_index = letter_to_index(p.word.at(word_i));
 				// try is for std::out_of_range
 				try {
-					// If the cell already has the required letter.
+					// If the cell already has the required letter
 					if (board_.at(row_i, col_i) == p.word.at(word_i)) {
 						p.score += letter_scores_.at(letter_as_index);
 						connects_to_existing = true;
 					}
-					// If the cell is empty, let's see if we can fill it.
+					// If the cell is empty, let's see if we can fill it
 					else if (board_.at(row_i, col_i) == empty) {
 						// Do we have the required letter?
 						if (available_letter_counts.at(letter_as_index) > p.letters_used.at(letter_as_index)) {
@@ -498,7 +516,7 @@ namespace halfred {
 							return std::string{"You do not have enough "} + upper(p.word.at(word_i)) + "'s to play it there.";
 						}
 
-						// Check for invalid crosswords.
+						// Check for invalid crosswords
 						if (p.across
 							&& ((row_i > 0 && board_.at(row_i - 1, col_i) != empty)
 								|| (row_i < board_dimension_ - 1 && board_.at(row_i + 1, col_i) != empty))) {
@@ -526,7 +544,7 @@ namespace halfred {
 							}
 							connects_to_existing = true;
 						}
-						// The word is spelled downwards.
+						// The word is spelled downwards
 						else if (!p.across
 							&& ((col_i > 0 && board_.at(row_i, col_i - 1) != empty)
 								|| (col_i < board_dimension_ - 1 && board_.at(row_i, col_i + 1) != empty))) {
@@ -552,7 +570,7 @@ namespace halfred {
 							connects_to_existing = true;
 						}
 					}
-					// The cell is already filled with a conflicting letter.
+					// The cell is already filled with a conflicting letter
 					else {
 						p.score = -1;
 						return std::string{"The board already has "} + upper(board_.at(row_i, col_i)) + " where you want to put " + upper(p.word.at(word_i)) + ".";
@@ -567,12 +585,12 @@ namespace halfred {
 				p.score = -1;
 				return "The word is already on the board in that position. You wouldn't be adding anything to it.";
 			}
-			// If the play has no crosswords, it is not connected to any words already on the board, and is therefore invalid.
+			// If the play has no crosswords, it is not connected to any words already on the board, and is therefore invalid
 			if (!connects_to_existing) {
 				p.score = -1;
 				return "It would not be touching any other words already on the board.";
 			}
-			// The only happy exit.
+			// The only happy exit
 			return "Valid play.";
 		}
 
@@ -587,7 +605,7 @@ namespace halfred {
 
 		void get_word(Play& p, std::istream& in = std::cin, std::ostream& out = std::cout) {
 			p.word = get_input("What word do you want to play?", in, out);
-			// The person is giving up on spelling any more words.
+			// The person is giving up on spelling any more words
 			if (p.word == "_") {
 				return;
 			}
