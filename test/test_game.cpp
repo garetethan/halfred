@@ -34,6 +34,21 @@ std::string readable_letter_tally(letter_tally& tally) {
 	return output.str();
 }
 
+void test_plays_equal(Play& actual, Play& expected, bool check_scores = false, bool check_letters_used = false) {
+	BOOST_TEST(actual.row == expected.row);
+	BOOST_TEST(actual.col == expected.col);
+	BOOST_TEST(actual.across == expected.across);
+	BOOST_TEST(actual.word == expected.word);
+	if (check_scores) {
+		BOOST_TEST(actual.score == expected.score);
+	}
+	if (check_letters_used) {
+		std::string actual_letters = readable_letter_tally(actual.letters_used);
+		std::string expected_letters = readable_letter_tally(expected.letters_used);
+		BOOST_TEST(actual_letters == expected_letters);
+	}
+}
+
 class ConstructorFixture {
 	public:
 	ConstructorFixture () {
@@ -132,24 +147,30 @@ BOOST_FIXTURE_TEST_CASE(test_seed, SeededGameFixture) {
 	BOOST_TEST(board_.at(8, 2) == 'e');
 }
 
-BOOST_FIXTURE_TEST_CASE(test_best_in_line, SeededGameFixture) {
+// Ensure we're working with the expected letters before later tests depend on them
+BOOST_FIXTURE_TEST_CASE(test_available_letters, SeededGameFixture) {
 	std::string hal_expected_letters{"AAAABCCQ"};
 	std::string hal_actual_letters = readable_letter_tally(hal_available_letter_counts_);
 	std::stringstream hal_letters_message{};
 	hal_letters_message << "Actual: " << "\nExpected: " << hal_expected_letters << "\n";
 	BOOST_TEST(hal_actual_letters == hal_expected_letters, hal_letters_message.str());
+}
+
+BOOST_FIXTURE_TEST_CASE(test_best_in_line, SeededGameFixture) {
 	// Look in row 8 since that's where the initial letter is "randomly" placed
-	Play row_choice = best_in_line(8, true);
-	BOOST_TEST(row_choice.row == 8);
-	BOOST_TEST(row_choice.col == 0);
-	BOOST_TEST(row_choice.across == true);
-	BOOST_TEST(row_choice.word == "ace");
+	Play row_best_expected = {8, 0, true, "ace", 6, letter_tally{}};
+	Play row_best_actual = best_in_line(8, true);
+	test_plays_equal(row_best_actual, row_best_expected, true);
 	// Look in column 2 since that's where the initial letter is "randomly" placed
-	Play col_choice = best_in_line(2, false);
-	BOOST_TEST(col_choice.row == 6);
-	BOOST_TEST(col_choice.col == 2);
-	BOOST_TEST(col_choice.across == false);
-	BOOST_TEST(col_choice.word == "ace");
+	Play col_best_expected = {6, 2, false, "ace", 6, letter_tally{}};
+	Play col_best_actual = best_in_line(2, false);
+	test_plays_equal(col_best_actual, col_best_expected, true);
+}
+
+BOOST_FIXTURE_TEST_CASE(test_best_overall, SeededGameFixture) {
+	Play best_expected{6, 2, false, "ace", 6, letter_tally{}};
+	Play best_actual = best_overall();
+	test_plays_equal(best_actual, best_expected, true);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
