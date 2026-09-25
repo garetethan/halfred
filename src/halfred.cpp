@@ -1,4 +1,4 @@
-// tolower, toupper
+// isupper, tolower, toupper
 #include <cctype>
 // ifstream
 #include <fstream>
@@ -56,6 +56,9 @@ namespace halfred {
 	size_type letter_to_index(char le) {
 		if (le == Game::wild) {
 			return letter_space_size;
+		}
+		else if (std::isupper(static_cast<unsigned char>(le))) {
+			le = lower(le);
 		}
 		return static_cast<size_type>(le) - Game::lowercase_offset;
 	}

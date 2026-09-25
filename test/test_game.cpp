@@ -24,7 +24,7 @@ const std::string test_letter_scores_path = "../test/data/letter_scores.txt";
 const std::string real_valid_words_path = "../data/valid_words.txt";
 const std::string real_letter_scores_path = "../data/letter_scores.txt";
 
-std::string readable_letter_tally(letter_tally& tally) {
+std::string letter_tally_to_string(letter_tally& tally) {
 	std::stringstream output{};
 	for (size_type tally_i = 0; tally_i < tally.size(); ++tally_i) {
 		for (unsigned int count = 0; count < tally.at(tally_i); ++count) {
@@ -32,6 +32,14 @@ std::string readable_letter_tally(letter_tally& tally) {
 		}
 	}
 	return output.str();
+}
+
+letter_tally string_to_letter_tally(std::string letters) {
+	letter_tally tally{};
+	for (const char& letter : letters) {
+		++tally.at(letter_to_index(letter));
+	}
+	return tally;
 }
 
 void test_plays_equal(Play& actual, Play& expected, bool check_scores = false, bool check_letters_used = false) {
@@ -43,8 +51,8 @@ void test_plays_equal(Play& actual, Play& expected, bool check_scores = false, b
 		BOOST_TEST(actual.score == expected.score);
 	}
 	if (check_letters_used) {
-		std::string actual_letters = readable_letter_tally(actual.letters_used);
-		std::string expected_letters = readable_letter_tally(expected.letters_used);
+		std::string actual_letters = letter_tally_to_string(actual.letters_used);
+		std::string expected_letters = letter_tally_to_string(expected.letters_used);
 		BOOST_TEST(actual_letters == expected_letters);
 	}
 }
@@ -150,10 +158,18 @@ BOOST_FIXTURE_TEST_CASE(test_seed, SeededGameFixture) {
 // Ensure we're working with the expected letters before later tests depend on them
 BOOST_FIXTURE_TEST_CASE(test_available_letters, SeededGameFixture) {
 	std::string hal_expected_letters{"AAAABCCQ"};
-	std::string hal_actual_letters = readable_letter_tally(hal_available_letter_counts_);
+	std::string hal_actual_letters = letter_tally_to_string(hal_available_letter_counts_);
 	std::stringstream hal_letters_message{};
 	hal_letters_message << "Actual: " << "\nExpected: " << hal_expected_letters << "\n";
 	BOOST_TEST(hal_actual_letters == hal_expected_letters, hal_letters_message.str());
+}
+
+BOOST_FIXTURE_TEST_CASE(test_evaluate_play, SeededGameFixture) {
+	Play actual = {8, 0, true, "ace", -1, letter_tally{}};
+	letter_tally expected_letters_used = string_to_letter_tally("AC");
+	Play expected = {8, 0, true, "ace", 6, expected_letters_used};
+	evaluate_play(actual, hal_available_letter_counts_);
+	test_plays_equal(actual, expected);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_best_in_line, SeededGameFixture) {

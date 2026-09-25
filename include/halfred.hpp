@@ -364,7 +364,7 @@ namespace halfred {
 			if (regex_match(location, location_match, valid_location_pattern)) {
 				// Has no reason to throw, since regex ensures it is just digits.
 				p.row = std::stoi(location_match[1].str()) - 1;
-				p.col = letter_to_index(lower(location_match[2].str().front()));
+				p.col = letter_to_index(location_match[2].str().front());
 				p.across = lower(location_match[3].str().front()) == 'a';
 			}
 			else {
