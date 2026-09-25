@@ -187,4 +187,20 @@ BOOST_FIXTURE_TEST_CASE(test_best_overall, SeededGameFixture) {
 	test_plays_equal(best_actual, best_expected, true);
 }
 
+BOOST_FIXTURE_TEST_CASE(test_apply_play, SeededGameFixture) {
+	// Halfred's rack has AAAABCCQ
+	// Its score is 0
+	const Play chosen_play{6, 2, false, "ace", 6, string_to_letter_tally("AC")};
+	constexpr unsigned int expected_score = 6;
+	apply_play(chosen_play, hal_available_letter_counts_, hal_score_);
+	BOOST_TEST(board_.at(6, 2) == 'a');
+	BOOST_TEST(board_.at(7, 2) == 'c');
+	BOOST_TEST(hal_score_ == expected_score);
+	BOOST_TEST(hal_available_letter_counts_.at(letter_to_index('A')) >= 3);
+	BOOST_TEST(hal_available_letter_counts_.at(letter_to_index('B')) >= 1);
+	BOOST_TEST(hal_available_letter_counts_.at(letter_to_index('C')) >= 1);
+	BOOST_TEST(hal_available_letter_counts_.at(letter_to_index('Q')) >= 1);
+	BOOST_TEST(std::accumulate(hal_available_letter_counts_.begin(), hal_available_letter_counts_.end(), 0) == Game::rack_size);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
