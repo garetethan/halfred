@@ -24,7 +24,7 @@ const std::string test_letter_scores_path = "../test/data/letter_scores.txt";
 const std::string real_valid_words_path = "../data/valid_words.txt";
 const std::string real_letter_scores_path = "../data/letter_scores.txt";
 
-std::string letter_tally_to_string(letter_tally& tally) {
+std::string letter_tally_to_string(const letter_tally& tally) {
 	std::stringstream output{};
 	for (size_type tally_i = 0; tally_i < tally.size(); ++tally_i) {
 		for (unsigned int count = 0; count < tally.at(tally_i); ++count) {
@@ -34,7 +34,7 @@ std::string letter_tally_to_string(letter_tally& tally) {
 	return output.str();
 }
 
-letter_tally string_to_letter_tally(std::string letters) {
+letter_tally string_to_letter_tally(const std::string letters) {
 	letter_tally tally{};
 	for (const char& letter : letters) {
 		++tally.at(letter_to_index(letter));
@@ -42,7 +42,7 @@ letter_tally string_to_letter_tally(std::string letters) {
 	return tally;
 }
 
-void test_plays_equal(Play& actual, Play& expected, bool check_scores = false, bool check_letters_used = false) {
+void test_plays_equal(const Play& actual, const Play& expected, bool check_scores = false, bool check_letters_used = false) {
 	BOOST_TEST(actual.row == expected.row);
 	BOOST_TEST(actual.col == expected.col);
 	BOOST_TEST(actual.across == expected.across);
@@ -103,13 +103,13 @@ class SeededGameFixture : public GameFixture {
 BOOST_AUTO_TEST_SUITE(GameTests)
 
 BOOST_FIXTURE_TEST_CASE(test_game_constructor, ConstructorFixture) {
-	Game game{valid_words(), board_dimension, false};
+	const Game game{valid_words(), board_dimension, false};
 	BOOST_TEST(game.valid_words().size() == valid_words().size());
 	BOOST_TEST(game.board_dimension() == board_dimension);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_game_constructor_with_letter_scores, ConstructorFixture) {
-	Game game{valid_words(), letter_scores(), board_dimension, false};
+	const Game game{valid_words(), letter_scores(), board_dimension, false};
 	BOOST_TEST(game.valid_words().size() == valid_words().size());
 	BOOST_TEST(game.letter_scores().at(7) == 7);
 	BOOST_TEST(game.board_dimension() == board_dimension);
@@ -128,25 +128,24 @@ BOOST_FIXTURE_TEST_CASE(test_random_letter_as_index, GameFixture) {
 BOOST_FIXTURE_TEST_CASE(test_draw_letters, GameFixture) {
 	// Braces initialize to all zeros.
 	letter_tally tile_rack{};
-	const unsigned int tiles_to_draw = 6;
+	constexpr unsigned int tiles_to_draw = 6;
 	draw_letters(tile_rack, tiles_to_draw);
 	BOOST_TEST(std::accumulate(tile_rack.begin(), tile_rack.end(), 0) == tiles_to_draw);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_parse_location_good, GameFixture) {
-	Play p = null_play;
+	Play actual = null_play;
+	const Play expected{0, 1, true, "", -1, letter_tally{}};
 	const std::string good_location{"1ba"};
-	parse_location(p, good_location);
-	BOOST_TEST(p.row == 0);
-	BOOST_TEST(p.col == 1);
-	BOOST_TEST(p.across = true);
+	parse_location(actual, good_location);
+	test_plays_equal(actual, expected, false, false);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_parse_location_bad, GameFixture) {
-	Play p = null_play;
+	Play actual = null_play;
 	const std::string bad_location{"foo"};
-	parse_location(p, bad_location);
-	BOOST_TEST(p.row >= board_dimension());
+	parse_location(actual, bad_location);
+	BOOST_TEST(actual.row >= board_dimension());
 }
 
 BOOST_FIXTURE_TEST_CASE(test_seed, SeededGameFixture) {
@@ -157,8 +156,8 @@ BOOST_FIXTURE_TEST_CASE(test_seed, SeededGameFixture) {
 
 // Ensure we're working with the expected letters before later tests depend on them
 BOOST_FIXTURE_TEST_CASE(test_available_letters, SeededGameFixture) {
-	std::string hal_expected_letters{"AAAABCCQ"};
-	std::string hal_actual_letters = letter_tally_to_string(hal_available_letter_counts_);
+	const std::string hal_expected_letters{"AAAABCCQ"};
+	const std::string hal_actual_letters = letter_tally_to_string(hal_available_letter_counts_);
 	std::stringstream hal_letters_message{};
 	hal_letters_message << "Actual: " << "\nExpected: " << hal_expected_letters << "\n";
 	BOOST_TEST(hal_actual_letters == hal_expected_letters, hal_letters_message.str());
@@ -166,26 +165,25 @@ BOOST_FIXTURE_TEST_CASE(test_available_letters, SeededGameFixture) {
 
 BOOST_FIXTURE_TEST_CASE(test_evaluate_play, SeededGameFixture) {
 	Play actual = {8, 0, true, "ace", -1, letter_tally{}};
-	letter_tally expected_letters_used = string_to_letter_tally("AC");
-	Play expected = {8, 0, true, "ace", 6, expected_letters_used};
+	const Play expected = {8, 0, true, "ace", 6, string_to_letter_tally("AC")};
 	evaluate_play(actual, hal_available_letter_counts_);
 	test_plays_equal(actual, expected);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_best_in_line, SeededGameFixture) {
 	// Look in row 8 since that's where the initial letter is "randomly" placed
-	Play row_best_expected = {8, 0, true, "ace", 6, letter_tally{}};
+	const Play row_best_expected = {8, 0, true, "ace", 6, string_to_letter_tally("AC")};
 	Play row_best_actual = best_in_line(8, true);
 	test_plays_equal(row_best_actual, row_best_expected, true);
 	// Look in column 2 since that's where the initial letter is "randomly" placed
-	Play col_best_expected = {6, 2, false, "ace", 6, letter_tally{}};
+	const Play col_best_expected = {6, 2, false, "ace", 6, letter_tally{}};
 	Play col_best_actual = best_in_line(2, false);
 	test_plays_equal(col_best_actual, col_best_expected, true);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_best_overall, SeededGameFixture) {
-	Play best_expected{6, 2, false, "ace", 6, letter_tally{}};
-	Play best_actual = best_overall();
+	const Play best_expected{6, 2, false, "ace", 6, string_to_letter_tally("AC")};
+	const Play best_actual = best_overall();
 	test_plays_equal(best_actual, best_expected, true);
 }
 

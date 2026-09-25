@@ -359,7 +359,7 @@ namespace halfred {
 		}
 
 		// Get a location from the player that could be valid (depending on the board dimension).
-		void parse_location(Play& p, std::string location) {
+		void parse_location(Play& p, const std::string location) {
 			std::smatch location_match{};
 			if (regex_match(location, location_match, valid_location_pattern)) {
 				// Has no reason to throw, since regex ensures it is just digits.
@@ -393,7 +393,7 @@ namespace halfred {
 
 		// Determine and return the best possible valid play in a row.
 		// is_row = false for a column.
-		Play best_in_line(size_type line_index, bool is_row = true) {
+		Play best_in_line(const size_type line_index, const bool is_row = true) {
 			BoardLine<char>& board_line = is_row ? board_.row(line_index) : board_.col(line_index);
 			std::map<size_type, char> row_letters{};
 			for (size_type i = 0; i < board_dimension_; ++i) {
@@ -436,7 +436,7 @@ namespace halfred {
 			return best_option;
 		}
 
-		void apply_play(Play& p, letter_tally& available_letter_counts, unsigned int& score) {
+		void apply_play(const Play& p, letter_tally& available_letter_counts, unsigned int& score) {
 			for (size_type i = 0; i < letter_space_size + 1; ++i) {
 				available_letter_counts.at(i) -= p.letters_used.at(i);
 			}
