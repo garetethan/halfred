@@ -148,14 +148,12 @@ BOOST_FIXTURE_TEST_CASE(test_parse_location_bad, GameFixture) {
 	BOOST_TEST(actual.row >= board_dimension());
 }
 
+// Ensure the seed causes the same game setup every time
 BOOST_FIXTURE_TEST_CASE(test_seed, SeededGameFixture) {
-	// Ensure the seed causes the same game setup every time
 	// This is the (usually) random letter that is placed in a (usually) random position at the beginning of each game
-	BOOST_TEST(board_.at(8, 2) == 'e');
-}
+	BOOST_TEST(board_.at(2, 8) == 'e');
 
-// Ensure we're working with the expected letters before later tests depend on them
-BOOST_FIXTURE_TEST_CASE(test_available_letters, SeededGameFixture) {
+	// Ensure we're working with the expected letters before later tests depend on them
 	const std::string hal_expected_letters{"AAAABCCQ"};
 	const std::string hal_actual_letters = letter_tally_to_string(hal_available_letter_counts_);
 	std::stringstream hal_letters_message{};
@@ -164,37 +162,41 @@ BOOST_FIXTURE_TEST_CASE(test_available_letters, SeededGameFixture) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_evaluate_play, SeededGameFixture) {
-	Play actual = {8, 0, true, "ace", -1, letter_tally{}};
-	const Play expected = {8, 0, true, "ace", 6, string_to_letter_tally("AC")};
+	Play actual = {2, 6, true, "ace", -1, letter_tally{}};
+	const Play expected = {2, 6, true, "ace", 6, string_to_letter_tally("AC")};
 	evaluate_play(actual, hal_available_letter_counts_);
-	test_plays_equal(actual, expected);
+	test_plays_equal(actual, expected, true, true);
 }
 
-BOOST_FIXTURE_TEST_CASE(test_best_in_line, SeededGameFixture) {
+BOOST_FIXTURE_TEST_CASE(test_best_in_line_row, SeededGameFixture) {
 	// Look in row 8 since that's where the initial letter is "randomly" placed
-	const Play row_best_expected = {8, 0, true, "ace", 6, string_to_letter_tally("AC")};
-	Play row_best_actual = best_in_line(8, true);
+	const Play row_best_expected = {2, 6, true, "ace", 6, string_to_letter_tally("AC")};
+	Play row_best_actual = best_in_line(2, true);
 	test_plays_equal(row_best_actual, row_best_expected, true);
+}
+
+BOOST_FIXTURE_TEST_CASE(test_best_in_line_column, SeededGameFixture) {
 	// Look in column 2 since that's where the initial letter is "randomly" placed
-	const Play col_best_expected = {6, 2, false, "ace", 6, letter_tally{}};
-	Play col_best_actual = best_in_line(2, false);
+	const Play col_best_expected = {0, 8, false, "ace", 6, letter_tally{}};
+	Play col_best_actual = best_in_line(8, false);
 	test_plays_equal(col_best_actual, col_best_expected, true);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_best_overall, SeededGameFixture) {
-	const Play best_expected{6, 2, false, "ace", 6, string_to_letter_tally("AC")};
+	const Play best_expected{2, 6, true, "ace", 6, string_to_letter_tally("AC")};
 	const Play best_actual = best_overall();
 	test_plays_equal(best_actual, best_expected, true);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_apply_play, SeededGameFixture) {
 	// Halfred's rack has AAAABCCQ
-	// Its score is 0
-	const Play chosen_play{6, 2, false, "ace", 6, string_to_letter_tally("AC")};
+	// Halfred's score is 0
+	const Play chosen_play{2, 6, true, "ace", 6, string_to_letter_tally("AC")};
 	constexpr unsigned int expected_score = 6;
 	apply_play(chosen_play, hal_available_letter_counts_, hal_score_);
-	BOOST_TEST(board_.at(6, 2) == 'a');
-	BOOST_TEST(board_.at(7, 2) == 'c');
+	BOOST_TEST(board_.at(2, 6) == 'a');
+	BOOST_TEST(board_.at(2, 7) == 'c');
+	BOOST_TEST(board_.at(2, 8) == 'e');
 	BOOST_TEST(hal_score_ == expected_score);
 	BOOST_TEST(hal_available_letter_counts_.at(letter_to_index('A')) >= 3);
 	BOOST_TEST(hal_available_letter_counts_.at(letter_to_index('B')) >= 1);

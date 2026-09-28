@@ -2,6 +2,8 @@
 #include <cmath>
 // stringstream
 #include <sstream>
+// out_of_range, runtime_error
+#include <stdexcept>
 // vector
 #include <vector>
 
@@ -21,13 +23,13 @@ namespace halfred {
 	template <typename T>
 	class Board {
 		public:
-		Board(const size_type board_dimension, const T& fill_val) : board_dimension_(board_dimension), board_(board_dimension * board_dimension, fill_val), rows_(), columns_() {
+		Board(const size_type dimension, const T& fill_val) : dimension_(dimension), board_(dimension * dimension, fill_val), rows_(), columns_() {
 			init();
 		}
 
-		Board(const std::vector<T>& board) : board_dimension_(std::sqrt(board.size())), board_(board), rows_(), columns_() {
+		Board(const std::vector<T>& board) : dimension_(std::sqrt(board.size())), board_(board), rows_(), columns_() {
 			// Check that the given board is square
-			if (board_dimension_ * board_dimension_ != board_.size()) {
+			if (dimension_ * dimension_ != board_.size()) {
 				std::stringstream message{};
 				message << "Requested a board of size " << board_.size() << ", which is not a perfect square.\n";
 				throw std::runtime_error{message.str()};
@@ -35,25 +37,35 @@ namespace halfred {
 			init();
 		}
 
-		Board() : board_dimension_(0), board_(), rows_(), columns_() {
+		Board() : dimension_(0), board_(), rows_(), columns_() {
 			init();
 		}
 
 		void init() {
-			for (size_type row_i = 0; row_i < board_dimension_; ++row_i) {
-				rows_.emplace_back(&at(row_i, 0), board_dimension_, 1);
+			for (size_type row_i = 0; row_i < dimension_; ++row_i) {
+				rows_.emplace_back(&at(row_i, 0), dimension_, 1);
 			}
-			for (size_type col_i = 0; col_i < board_dimension_; ++col_i) {
-				columns_.emplace_back(&at(0, col_i), board_dimension_, board_dimension_);
+			for (size_type col_i = 0; col_i < dimension_; ++col_i) {
+				columns_.emplace_back(&at(0, col_i), dimension_, dimension_);
 			}
 		}
 
 		T& at(size_type row, size_type col) {
-			return board_.at(row * board_dimension_ + col);
+			if (row >= dimension_) {
+				std::stringstream message{};
+				message << "Board row " << row << " exceeds maximum index " << dimension_ - 1;
+				throw std::out_of_range{message.str()};
+			}
+			if (col >= dimension_) {
+				std::stringstream message{};
+				message << "Board column " << col << " exceeds maximum index " << dimension_ - 1;
+				throw std::out_of_range{message.str()};
+			}
+			return board_.at(row * dimension_ + col);
 		}
 
 		const T& at(size_type row, size_type col) const {
-			return board_.at(row * board_dimension_ + col);
+			return board_.at(row * dimension_ + col);
 		}
 
 		ContiguousIterator<BoardLine<T>> begin() {
@@ -81,11 +93,11 @@ namespace halfred {
 		}
 
 		ContiguousIterator<BoardLine<T>> rows_end() {
-			return rows_begin() + board_dimension_;
+			return rows_begin() + dimension_;
 		}
 
 		ContiguousIterator<const BoardLine<T>> rows_end() const {
-			return rows_begin() + board_dimension_;
+			return rows_begin() + dimension_;
 		}
 
 		ContiguousIterator<BoardLine<T>> cols_begin() {
@@ -97,11 +109,11 @@ namespace halfred {
 		}
 
 		ContiguousIterator<BoardLine<T>> cols_end() {
-			return cols_begin() + board_dimension_;
+			return cols_begin() + dimension_;
 		}
 
 		ContiguousIterator<const BoardLine<T>> cols_end() const {
-			return cols_begin() + board_dimension_;
+			return cols_begin() + dimension_;
 		}
 
 		BoardLine<T>& row(size_type index) {
@@ -120,12 +132,20 @@ namespace halfred {
 			return columns_.at(index);
 		}
 
+		size_type dimension() const noexcept {
+			return dimension_;
+		}
+
 		size_type size() const noexcept {
-			return board_dimension_ * board_dimension_;
+			return dimension_ * dimension_;
+		}
+
+		explicit operator bool() const noexcept {
+			return dimension_ > 0;
 		}
 
 		protected:
-		size_type board_dimension_;
+		size_type dimension_;
 		std::vector<T> board_;
 		std::vector<BoardLine<T>> rows_;
 		std::vector<BoardLine<T>> columns_;
@@ -166,6 +186,10 @@ namespace halfred {
 
 		size_type size() const noexcept {
 			return size_;
+		}
+
+		explicit operator bool() const noexcept {
+			return size_ > 0;
 		}
 
 		protected:

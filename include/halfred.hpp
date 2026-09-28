@@ -81,9 +81,9 @@ namespace halfred {
 		int score;
 		letter_tally letters_used;
 
-		std::string to_string() {
+		std::string to_string() const {
 			std::stringstream output{};
-			output << "Play \"" << word << "\" at " << row << index_to_letter(col) << " " << (across ? "across" : "down") << " for a score of " << score << ".\n";
+			output << "Play \"" << word << "\" at " << row + 1 << index_to_letter(col) << " (" << row << ", " << col << ") " << (across ? "across" : "down") << " for a score of " << score;
 			return output.str();
 		}
 	};
@@ -124,7 +124,7 @@ namespace halfred {
 		Game(std::set<std::string> valid_words, const size_type board_dimension, const bool verbose = false, const unsigned int seed = 0) :
 				valid_words_(valid_words),
 				board_dimension_(board_dimension),
-				board_(board_dimension * board_dimension_, empty),
+				board_(board_dimension, empty),
 				cross_checks_horizontal_(board_dimension, true_cross_checks),
 				cross_checks_vertical_(board_dimension, true_cross_checks),
 				partial_scores_horizontal_(board_dimension, 0),
@@ -356,12 +356,19 @@ namespace halfred {
 
 			// Set one cell on the board to a random letter
 			// The first play must connect to this letter
-			char random_letter = wild;
-			while (random_letter == wild) {
-				random_letter = index_to_letter(random_letter_as_index());
+			char initial_letter = wild;
+			while (initial_letter == wild) {
+				initial_letter = index_to_letter(random_letter_as_index());
 			}
 			std::uniform_int_distribution<unsigned int> random_location_dist{1, board_dimension_ - 1};
-			board_.at(random_location_dist(random_bit_gen_), random_location_dist(random_bit_gen_)) = random_letter;
+			// For test reproducability it's important that the order of the uses of random_bit_gen_ be preserved
+			const size_type initial_letter_row = random_location_dist(random_bit_gen_);
+			const size_type initial_letter_col = random_location_dist(random_bit_gen_);
+			board_.at(initial_letter_row, initial_letter_col) = initial_letter;
+
+			// Update cross checks to account for initial letter
+			Play initial_letter_play{initial_letter_row, initial_letter_col, true, std::string{initial_letter}, 0, letter_tally{}};
+			update_cross_checks(initial_letter_play);
 		}
 
 		unsigned int random_letter_as_index() {
@@ -452,25 +459,6 @@ namespace halfred {
 				}
 			}
 			return best_option;
-		}
-
-		void apply_play(const Play& p, letter_tally& available_letter_counts, unsigned int& score) {
-			for (size_type i = 0; i < letter_space_size + 1; ++i) {
-				available_letter_counts.at(i) -= p.letters_used.at(i);
-			}
-			if (p.across) {
-				for (size_type pos = 0; pos < p.word.size(); ++pos) {
-					board_.at(p.row, p.col + pos) = p.word.at(pos);
-				}
-			}
-			// If played vertically
-			else {
-				for (size_type pos = 0; pos < p.word.size(); ++pos) {
-					board_.at(p.row + pos, p.col) = p.word.at(pos);
-				}
-			}
-			score += p.score;
-			draw_letters(available_letter_counts, std::accumulate(p.letters_used.begin(), p.letters_used.end(), 0));
 		}
 
 		std::string evaluate_play(Play& p, const letter_tally& available_letter_counts) {
@@ -592,6 +580,102 @@ namespace halfred {
 			}
 			// The only happy exit
 			return "Valid play.";
+		}
+
+		void apply_play(const Play& p, letter_tally& available_letter_counts, unsigned int& score) {
+			for (size_type i = 0; i < letter_space_size + 1; ++i) {
+				available_letter_counts.at(i) -= p.letters_used.at(i);
+			}
+			if (p.across) {
+				for (size_type pos = 0; pos < p.word.size(); ++pos) {
+					board_.at(p.row, p.col + pos) = p.word.at(pos);
+				}
+			}
+			// If played vertically
+			else {
+				for (size_type pos = 0; pos < p.word.size(); ++pos) {
+					board_.at(p.row + pos, p.col) = p.word.at(pos);
+				}
+			}
+			score += p.score;
+			// Cross checks and partial scores can only be found after the board has been updated
+			update_cross_checks(p);
+			draw_letters(available_letter_counts, std::accumulate(p.letters_used.begin(), p.letters_used.end(), 0));
+		}
+
+		void update_cross_checks(const Play& p) {
+			// Played horizontally
+			if (p.across) {
+				const BoardLine<char>& play_row = board_.row(p.row);
+				// Cell to the left
+				if (p.col > 0) {
+					update_cross_check_cell(play_row, p.col - 1, cross_checks_horizontal_.at(p.row, p.col - 1));
+				}
+				for (size_type col_i = p.col; col_i < p.col + p.word.size(); ++col_i) {
+					const BoardLine<char>& cross_line = board_.col(col_i);
+					// Row above
+					if (p.row > 0) {
+						update_cross_check_cell(cross_line, p.row - 1, cross_checks_vertical_.at(p.row - 1, col_i));
+					}
+					// Row being played in
+					cross_checks_vertical_.at(p.row, col_i) = false_cross_checks;
+					// Row below
+					if (p.row < board_dimension_ - 1) {
+						update_cross_check_cell(cross_line, p.row + 1, cross_checks_vertical_.at(p.row + 1, col_i));
+					}
+				}
+				// Cell to the right
+				const size_type word_end_col = p.col + p.word.size();
+				if (word_end_col < board_dimension_ - 1) {
+					update_cross_check_cell(play_row, word_end_col, cross_checks_horizontal_.at(p.row, word_end_col));
+				}
+
+			}
+			// Played vertically
+			else {
+				const BoardLine<char>& play_col = board_.col(p.col);
+				// Cell above
+				if (p.row > 0) {
+					update_cross_check_cell(play_col, p.row - 1, cross_checks_vertical_.at(p.row - 1, p.col));
+				}
+				for (size_type row_i = p.row; row_i < p.row + p.word.size(); ++row_i) {
+					BoardLine<char>& cross_line = board_.row(row_i);
+					// Column to the left
+					if (p.col > 0) {
+						update_cross_check_cell(cross_line, p.col - 1, cross_checks_horizontal_.at(row_i, p.col - 1));
+					}
+					// Column being played in
+					cross_checks_horizontal_.at(row_i, p.col) = false_cross_checks;
+					// Column to the right
+					if (p.col < board_dimension_ - 1) {
+						update_cross_check_cell(cross_line, p.col + 1, cross_checks_horizontal_.at(row_i, p.col + 1));
+					}
+				}
+				// Cell below
+				const size_type word_end_row = p.row + p.word.size();
+				if (word_end_row < board_dimension_ - 1) {
+					update_cross_check_cell(play_col, p.row + 1, cross_checks_vertical_.at(word_end_row, p.row + 1));
+				}
+			}
+		}
+
+		void update_cross_check_cell(const BoardLine<char>& cross_line, const size_type index_in_cross_line, std::array<bool, letter_space_size>& cross_check_cell) {
+			size_type cross_word_begin = index_in_cross_line;
+			while (cross_word_begin > 0 && cross_line.at(cross_word_begin - 1) != empty) {
+				--cross_word_begin;
+			}
+			size_type cross_word_end = index_in_cross_line + 1;
+			while (cross_word_end < board_dimension_ && cross_line.at(cross_word_end) != empty) {
+				++cross_word_end;
+			}
+			std::string cross_word{};
+			for (size_type cross_i = cross_word_begin; cross_i < cross_word_end; ++cross_i) {
+				cross_word += cross_line.at(cross_i);
+			}
+			for (size_type letter_i = 0; letter_i < letter_space_size; ++letter_i) {
+				cross_word.at(index_in_cross_line - cross_word_begin) = index_to_letter(letter_i);
+				cross_check_cell.at(letter_i) = valid_words_.contains(cross_word);
+			}
 		}
 
 		std::stringstream& output_column_indexes(std::stringstream& out) const {
