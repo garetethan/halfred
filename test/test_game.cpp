@@ -73,9 +73,39 @@ class GameFixture : public Game {
 class SeededGameFixture : public GameFixture {
 	public:
 	static constexpr unsigned int seed = 42;
+	static const Play horizontal_play;
+	static const Play vertical_play;
 
 	SeededGameFixture() : GameFixture{seed} {}
+
+	int letter_score_sum(const std::string& letters) const {
+		int score = 0;
+		for (const char& letter : letters) {
+			score += letter_scores_.at(letter_to_index(letter));
+		}
+		return score;
+	}
 };
+
+// These plays are tied for the best possible on the first move, which is taken by Halfred
+/*
+  ...|5|6|7|8|9|...
+0 ...|_|_|_|_|_|...
+1 ...|_|_|_|_|_|...
+2 ...|_|A|C|E|_|...
+3 ...|_|_|_|_|_|...
+4 ...|_|_|_|_|_|...
+*/
+const Play SeededGameFixture::horizontal_play{2, 6, true, "ace", 6, string_to_letter_tally("AC")};
+/*
+  ...|6|7|8|9|10|...
+0 ...|_|_|A|_|__|...
+1 ...|_|_|C|_|__|...
+2 ...|_|_|E|_|__|...
+3 ...|_|_|_|_|__|...
+4 ...|_|_|_|_|__|...
+*/
+const Play SeededGameFixture::vertical_play{0, 8, false, "ace", 6, string_to_letter_tally("AC")};
 
 BOOST_AUTO_TEST_SUITE(GameTests)
 
@@ -160,17 +190,15 @@ BOOST_FIXTURE_TEST_CASE(test_best_in_line_column, SeededGameFixture) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_best_overall, SeededGameFixture) {
-	const Play best_expected{2, 6, true, "ace", 6, string_to_letter_tally("AC")};
 	const Play best_actual = best_overall();
-	test_plays_equal(best_actual, best_expected, true);
+	test_plays_equal(best_actual, horizontal_play, true);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_apply_play, SeededGameFixture) {
 	// Halfred's rack has AAAABCCQ
 	// Halfred's score is 0
-	const Play chosen_play{2, 6, true, "ace", 6, string_to_letter_tally("AC")};
 	constexpr unsigned int expected_score = 6;
-	apply_play(chosen_play, hal_available_letter_counts_, hal_score_);
+	apply_play(horizontal_play, hal_available_letter_counts_, hal_score_);
 	BOOST_TEST(board_.at(2, 6) == 'a');
 	BOOST_TEST(board_.at(2, 7) == 'c');
 	BOOST_TEST(board_.at(2, 8) == 'e');
@@ -223,8 +251,7 @@ BOOST_FIXTURE_TEST_CASE(test_cross_checks_after_horizontal_play, SeededGameFixtu
 	Cells with '!' have their cross checks (horizontal and vertical) validated in this test
 	*/
 
-	const Play p{2, 6, true, "ace", 6, string_to_letter_tally("AC")};
-	apply_play(p, hal_available_letter_counts_, hal_score_);
+	apply_play(horizontal_play, hal_available_letter_counts_, hal_score_);
 
 	// Around A
 	// Above A
@@ -276,8 +303,7 @@ BOOST_FIXTURE_TEST_CASE(test_cross_checks_after_vertical_play, SeededGameFixture
 	Cells with '!' have their cross checks (horizontal and vertical) validated in this test
 	*/
 
-	const Play p{0, 8, false, "ace", 6, string_to_letter_tally("AC")};
-	apply_play(p, hal_available_letter_counts_, hal_score_);
+	apply_play(vertical_play, hal_available_letter_counts_, hal_score_);
 
 	// Around A
 	// To the left of A
@@ -311,6 +337,86 @@ BOOST_FIXTURE_TEST_CASE(test_cross_checks_after_vertical_play, SeededGameFixture
 	BOOST_TEST(cross_check_to_string(cross_checks_vertical_.at(2, 7)) == whole_alphabet);
 	BOOST_TEST(cross_check_to_string(cross_checks_vertical_.at(2, 9)) == whole_alphabet);
 	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(3, 8)) == whole_alphabet);
+}
+
+BOOST_FIXTURE_TEST_CASE(test_partial_scores_after_horizontal_play, SeededGameFixture) {
+	/*
+	  ...|5|6|7|8|9|...
+	0 ...|_|_|_|_|_|...
+	1 ...|_|_|_|_|_|...
+	2 ...|_|A|C|E|_|...
+	3 ...|_|_|_|_|_|...
+	4 ...|_|_|_|_|_|...
+	*/
+
+	apply_play(horizontal_play, hal_available_letter_counts_, hal_score_);
+
+	// Around A
+	BOOST_TEST(partial_scores_vertical_.at(1, 6) == letter_score_sum("A"));
+	BOOST_TEST(partial_scores_horizontal_.at(2, 5) == letter_score_sum("ACE"));
+	BOOST_TEST(partial_scores_vertical_.at(3, 6) == letter_score_sum("A"));
+
+	// These should not have been updated
+	BOOST_TEST(partial_scores_horizontal_.at(1, 6) == 0);
+	BOOST_TEST(partial_scores_vertical_.at(2, 5) == 0);
+	BOOST_TEST(partial_scores_horizontal_.at(3, 6) == 0);
+
+	// Around C
+	BOOST_TEST(partial_scores_vertical_.at(1, 7) == letter_score_sum("C"));
+	BOOST_TEST(partial_scores_vertical_.at(3, 7) == letter_score_sum("C"));
+
+	// These should not have been updated
+	BOOST_TEST(partial_scores_horizontal_.at(1, 7) == 0);
+	BOOST_TEST(partial_scores_horizontal_.at(3, 7) == 0);
+
+	// Around E
+	BOOST_TEST(partial_scores_vertical_.at(1, 8) == letter_score_sum("E"));
+	BOOST_TEST(partial_scores_horizontal_.at(2, 9) == letter_score_sum("ACE"));
+	BOOST_TEST(partial_scores_vertical_.at(3, 8) == letter_score_sum("E"));
+
+	// These should not have been updated
+	BOOST_TEST(partial_scores_horizontal_.at(1, 8) == 0);
+	BOOST_TEST(partial_scores_vertical_.at(2, 9) == 0);
+	BOOST_TEST(partial_scores_horizontal_.at(3, 8) == 0);
+}
+
+BOOST_FIXTURE_TEST_CASE(test_partial_scores_after_vertical_play, SeededGameFixture) {
+	/*
+	  ...|6|7|8|9|10|...
+	0 ...|_|_|A|_|__|...
+	1 ...|_|_|C|_|__|...
+	2 ...|_|_|E|_|__|...
+	3 ...|_|_|_|_|__|...
+	4 ...|_|_|_|_|__|...
+	*/
+
+	apply_play(vertical_play, hal_available_letter_counts_, hal_score_);
+
+	// Around A
+	BOOST_TEST(partial_scores_horizontal_.at(0, 7) == letter_score_sum("A"));
+	BOOST_TEST(partial_scores_horizontal_.at(0, 9) == letter_score_sum("A"));
+
+	// These should not have been updated
+	BOOST_TEST(partial_scores_vertical_.at(0, 7) == 0);
+	BOOST_TEST(partial_scores_vertical_.at(0, 9) == 0);
+
+	// Around C
+	BOOST_TEST(partial_scores_horizontal_.at(1, 7) == letter_score_sum("C"));
+	BOOST_TEST(partial_scores_horizontal_.at(1, 9) == letter_score_sum("C"));
+
+	// These should not have been updated
+	BOOST_TEST(partial_scores_vertical_.at(1, 7) == 0);
+	BOOST_TEST(partial_scores_vertical_.at(1, 9) == 0);
+
+	// Around E
+	BOOST_TEST(partial_scores_horizontal_.at(2, 7) == letter_score_sum("E"));
+	BOOST_TEST(partial_scores_horizontal_.at(2, 9) == letter_score_sum("E"));
+	BOOST_TEST(partial_scores_vertical_.at(3, 8) == letter_score_sum("ACE"));
+
+	// These should not have been updated
+	BOOST_TEST(partial_scores_vertical_.at(2, 7) == 0);
+	BOOST_TEST(partial_scores_vertical_.at(2, 9) == 0);
+	BOOST_TEST(partial_scores_horizontal_.at(3, 8) == 0);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
