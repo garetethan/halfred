@@ -1,5 +1,9 @@
 be
 ace
+aces
 cab
 invalid
+la
+lace
 longwordthatsimpossibletoplay
+pace
