@@ -169,8 +169,8 @@ namespace halfred {
 		Game() : board_dimension_(0), verbose_(false), seed_(0) {}
 
 		Game(std::set<std::string> valid_words, letter_tally letter_scores, const size_type board_dimension, const bool verbose = false, const unsigned int seed = 0) :
-				letter_scores_(letter_scores),
 				valid_words_(valid_words),
+				letter_scores_(letter_scores),
 				board_dimension_(board_dimension),
 				board_(board_dimension, empty),
 				trie_(valid_words.begin(), valid_words.end()),
@@ -404,6 +404,11 @@ namespace halfred {
 		unsigned int hal_score_;
 
 		void init() {
+			if (board_dimension_ < 2 || board_dimension_ > max_board_dimension) {
+				std::stringstream message{};
+				message << "Board dimension of " << board_dimension_ << " is outside the allowable range of 2 - " << max_board_dimension << ".\n";
+				throw std::runtime_error{message.str()};
+			}
 			letter_weights_.front() = 1.f / std::max(letter_scores_.front(), 1U);
 			for (size_type i = 1; i < letter_space_size; ++i) {
 				letter_weights_.at(i) = letter_weights_.at(i - 1) + (1.f / std::max(letter_scores_.at(i), 1U));

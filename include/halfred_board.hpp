@@ -37,11 +37,13 @@ namespace halfred {
 			init();
 		}
 
-		Board() : dimension_(0), board_(), rows_(), columns_() {
-			init();
-		}
+		// Calling any member functions of a default-constructed board causes undefined behavior
+		Board() : dimension_(0), board_(), rows_(), columns_() {}
 
 		void init() {
+			if (dimension_ == 0) {
+				throw std::runtime_error{"Cannot construct a board with a dimension of 0."};
+			}
 			for (size_type row_i = 0; row_i < dimension_; ++row_i) {
 				rows_.emplace_back(&at(row_i, 0), dimension_, 1);
 			}
@@ -51,16 +53,6 @@ namespace halfred {
 		}
 
 		T& at(size_type row, size_type col) {
-			if (row >= dimension_) {
-				std::stringstream message{};
-				message << "Board row " << row << " exceeds maximum index " << dimension_ - 1;
-				throw std::out_of_range{message.str()};
-			}
-			if (col >= dimension_) {
-				std::stringstream message{};
-				message << "Board column " << col << " exceeds maximum index " << dimension_ - 1;
-				throw std::out_of_range{message.str()};
-			}
 			return board_.at(row * dimension_ + col);
 		}
 
