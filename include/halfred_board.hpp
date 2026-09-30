@@ -37,7 +37,7 @@ namespace halfred {
 			init();
 		}
 
-		// Calling any member functions of a default-constructed board causes undefined behavior
+		// Calling any member functions of a default-constructed board causes undefined behavior, with the exception of bool
 		Board() : dimension_(0), board_(), rows_(), columns_() {}
 
 		void init() {
@@ -149,7 +149,7 @@ namespace halfred {
 		public:
 		BoardLine(T* start, const size_type size, const std::ptrdiff_t stride) : start_(start), size_(size), stride_(stride) {}
 
-		// Calling any member functions of a default-constructed board line causes undefined behavior
+		// Calling any member functions of a default-constructed board line causes undefined behavior, except for bool
 		BoardLine() : start_(nullptr), size_(0), stride_(0) {}
 
 		T& at(size_type index) {

@@ -37,7 +37,6 @@ namespace halfred {
 	using size_type = unsigned int;
 
 	// Defined below
-	struct TrieNode;
 	class Trie;
 	struct Play;
 	class StreamHandler;
@@ -63,58 +62,73 @@ namespace halfred {
 	using letter_tally = std::array<unsigned int, letter_space_size + 1>;
 
 
-	struct TrieNode {
-		// Does this node's parent represent the end of a valid word?
-		bool is_end;
-		std::array<std::unique_ptr<TrieNode>, letter_space_size> children;
-
-		TrieNode() : is_end(false), children() {}
-	};
-
 	class Trie {
 		public:
 		template <typename I>
-		Trie(I iter, const I& end) : root_(), size_(0) {
+		Trie(I iter, const I& end) : is_end_(false), children_() {
 			while (iter != end) {
 				insert(*iter);
 				iter++;
 			}
 		}
 
-		Trie() : root_(), size_(0) {}
+		Trie() : is_end_(false), children_() {}
 
 		void insert(const std::string& word) {
-			TrieNode* current = &root_;
+			Trie* current = this;
 			for (const char& letter : word) {
-				if (!(current->children.at(letter_to_index(letter)))) {
-					current->children.at(letter_to_index(letter)) = std::make_unique<TrieNode>();
+				const size_type index = letter_to_index(letter);
+				if (!(current->children_.at(index))) {
+					current->children_.at(index) = std::make_unique<Trie>();
 				}
-				current = current->children.at(letter_to_index(letter)).get();
+				current = current->children_.at(index).get();
 			}
-			current->is_end = true;
-			++size_;
+			current->is_end_ = true;
+		}
+
+		bool has(const char letter) const {
+			return bool(children_.at(letter_to_index(letter)));
+		}
+
+		const Trie* get(const char letter) const {
+			// unique_ptr.get gives nullptr if it doesn't own a Trie
+			return children_.at(letter_to_index(letter)).get();
+		}
+
+		Trie* get(const char letter) {
+			return children_.at(letter_to_index(letter)).get();
+		}
+
+		const Trie* subtrie(const std::string& word) const {
+			const Trie* current = this;
+			for (const char& letter : word) {
+				current = current->get(letter);
+				if (current == nullptr) {
+					break;
+				}
+			}
+			return current;
+		}
+
+		Trie* subtrie(const std::string& word) {
+			return const_cast<Trie*>(std::as_const(*this).subtrie(word));
 		}
 
 		bool contains(const std::string& word) {
-			TrieNode* current = &root_;
-			for (const char& letter : word) {
-				if (current->children.at(letter_to_index(letter))) {
-					current = current->children.at(letter_to_index(letter)).get();
-				}
-				else {
-					return false;
-				}
+			Trie* last = subtrie(word);
+			if (last == nullptr) {
+				return false;
 			}
-			return current->is_end;
-		}
-
-		size_type size() const noexcept {
-			return size_;
+			else {
+				return last->is_end_;
+			}
 		}
 
 		protected:
-		TrieNode root_;
-		size_type size_;
+		// Does this node's parent represent the end of a valid word?
+		bool is_end_;
+		std::array<std::unique_ptr<Trie>, letter_space_size> children_;
+
 	};
 
 	struct Play {
