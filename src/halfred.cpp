@@ -81,6 +81,11 @@ namespace halfred {
 		std::swap(first.hal_available_letter_counts_, second.hal_available_letter_counts_);
 		std::swap(first.person_score_, second.person_score_);
 		std::swap(first.hal_score_, second.hal_score_);
+		std::swap(first.trie_, second.trie_);
+		std::swap(first.cross_checks_horizontal_, second.cross_checks_horizontal_);
+		std::swap(first.cross_checks_vertical_, second.cross_checks_vertical_);
+		std::swap(first.partial_scores_horizontal_, second.partial_scores_horizontal_);
+		std::swap(first.partial_scores_vertical_, second.partial_scores_vertical_);
 		std::swap(first.seed_, second.seed_);
 		// random_dev_ is omitted here because std::random_device is not swappable.
 		std::swap(first.random_bit_gen_, second.random_bit_gen_);
@@ -107,10 +112,7 @@ namespace halfred {
 	out = cout
 	*/
 	int play_game(std::string valid_words_path, std::string letter_scores_path, size_type board_dimension, bool verbose, std::istream& in, std::ostream& out) {
-		StreamHandler{in};
-		StreamHandler{out};
 		std::ifstream valid_words_file = defensively_open(valid_words_path);
-		StreamHandler{valid_words_file};
 		std::set<std::string> valid_words{};
 		std::string word;
 		while (valid_words_file >> word) {
@@ -127,7 +129,6 @@ namespace halfred {
 		}
 		else {
 			std::ifstream letter_scores_file = defensively_open(letter_scores_path);
-			StreamHandler{letter_scores_file};
 			letter_tally letter_scores;
 			for (unsigned int& score : letter_scores) {
 				letter_scores_file >> score;
