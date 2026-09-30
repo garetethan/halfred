@@ -12,6 +12,8 @@
 #include <iostream>
 // map
 #include <map>
+// unique_ptr, make_unique
+#include <memory>
 // accumulate
 #include <numeric>
 // mt19937, random_device, uniform_real_distribution
@@ -34,7 +36,11 @@
 namespace halfred {
 	using size_type = unsigned int;
 
+	// Defined below
+	struct TrieNode;
+	class Trie;
 	struct Play;
+	class StreamHandler;
 	class Game;
 
 	// Defined in halfred.cpp
@@ -45,6 +51,86 @@ namespace halfred {
 	char index_to_letter(size_type ind);
 	char lower(const char up);
 	char upper(const char lo);
+
+	template <size_type N, typename T>
+	constexpr std::array<T, N> filled_array(const T& val) {
+		std::array<T, N> arr;
+		arr.fill(val);
+		return arr;
+	}
+
+	constexpr size_type letter_space_size = 26;
+	using letter_tally = std::array<unsigned int, letter_space_size + 1>;
+
+
+	struct TrieNode {
+		// Does this node's parent represent the end of a valid word?
+		bool is_end;
+		std::array<std::unique_ptr<TrieNode>, letter_space_size> children;
+
+		TrieNode() : is_end(false), children() {}
+	};
+
+	class Trie {
+		public:
+		template <typename I>
+		Trie(I iter, const I& end) : root_(), size_(0) {
+			while (iter != end) {
+				insert(*iter);
+				iter++;
+			}
+		}
+
+		Trie() : root_(), size_(0) {}
+
+		void insert(const std::string& word) {
+			TrieNode* current = &root_;
+			for (const char& letter : word) {
+				if (!(current->children.at(letter_to_index(letter)))) {
+					current->children.at(letter_to_index(letter)) = std::make_unique<TrieNode>();
+				}
+				current = current->children.at(letter_to_index(letter)).get();
+			}
+			current->is_end = true;
+			++size_;
+		}
+
+		bool contains(const std::string& word) {
+			TrieNode* current = &root_;
+			for (const char& letter : word) {
+				if (current->children.at(letter_to_index(letter))) {
+					current = current->children.at(letter_to_index(letter)).get();
+				}
+				else {
+					return false;
+				}
+			}
+			return current->is_end;
+		}
+
+		size_type size() const noexcept {
+			return size_;
+		}
+
+		protected:
+		TrieNode root_;
+		size_type size_;
+	};
+
+	struct Play {
+		size_type row;
+		size_type col;
+		bool across;
+		std::string word;
+		int score;
+		letter_tally letters_used;
+
+		std::string to_string() const {
+			std::stringstream output{};
+			output << "Play \"" << word << "\" at " << row + 1 << index_to_letter(col) << " (" << row << ", " << col << ") " << (across ? "across" : "down") << " for a score of " << score;
+			return output.str();
+		}
+	};
 
 	class StreamHandler {
 		public:
@@ -61,31 +147,6 @@ namespace halfred {
 		std::ios& stream_;
 		std::ios::iostate exceptions_;
 		std::streamsize width_;
-	};
-
-	template <size_type N, typename T>
-	constexpr std::array<T, N> filled_array(const T& val) {
-		std::array<T, N> arr;
-		arr.fill(val);
-		return arr;
-	}
-
-	static constexpr size_type letter_space_size = 26;
-	using letter_tally = std::array<unsigned int, letter_space_size + 1>;
-
-	struct Play {
-		size_type row;
-		size_type col;
-		bool across;
-		std::string word;
-		int score;
-		letter_tally letters_used;
-
-		std::string to_string() const {
-			std::stringstream output{};
-			output << "Play \"" << word << "\" at " << row + 1 << index_to_letter(col) << " (" << row << ", " << col << ") " << (across ? "across" : "down") << " for a score of " << score;
-			return output.str();
-		}
 	};
 
 	class Game {
@@ -112,6 +173,7 @@ namespace halfred {
 				valid_words_(valid_words),
 				board_dimension_(board_dimension),
 				board_(board_dimension, empty),
+				trie_(valid_words.begin(), valid_words.end()),
 				cross_checks_horizontal_(board_dimension, true_cross_checks),
 				cross_checks_vertical_(board_dimension, true_cross_checks),
 				partial_scores_horizontal_(board_dimension, 0),
@@ -125,6 +187,7 @@ namespace halfred {
 				valid_words_(valid_words),
 				board_dimension_(board_dimension),
 				board_(board_dimension, empty),
+				trie_(valid_words.begin(), valid_words.end()),
 				cross_checks_horizontal_(board_dimension, true_cross_checks),
 				cross_checks_vertical_(board_dimension, true_cross_checks),
 				partial_scores_horizontal_(board_dimension, 0),
@@ -163,6 +226,7 @@ namespace halfred {
 			letter_weights_ = other.letter_weights_;
 			person_available_letter_counts_ = other.person_available_letter_counts_;
 			hal_available_letter_counts_ = other.hal_available_letter_counts_;
+			trie_ = Trie{other.valid_words_.begin(), other.valid_words_.end()};
 			cross_checks_horizontal_ = other.cross_checks_horizontal_;
 			cross_checks_vertical_ = other.cross_checks_vertical_;
 			partial_scores_horizontal_ = other.partial_scores_horizontal_;
@@ -324,6 +388,7 @@ namespace halfred {
 		unsigned int seed_;
 
 		Board<char> board_;
+		Trie trie_;
 		Board<std::array<bool, letter_space_size>> cross_checks_horizontal_;
 		Board<std::array<bool, letter_space_size>> cross_checks_vertical_;
 		Board<int> partial_scores_horizontal_;
