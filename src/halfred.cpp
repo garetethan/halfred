@@ -77,8 +77,8 @@ namespace halfred {
 		std::swap(first.verbose_, second.verbose_);
 		std::swap(first.board_, second.board_);
 		std::swap(first.letter_weights_, second.letter_weights_);
-		std::swap(first.person_available_letter_counts_, second.person_available_letter_counts_);
-		std::swap(first.hal_available_letter_counts_, second.hal_available_letter_counts_);
+		std::swap(first.person_rack_, second.person_rack_);
+		std::swap(first.hal_rack_, second.hal_rack_);
 		std::swap(first.person_score_, second.person_score_);
 		std::swap(first.hal_score_, second.hal_score_);
 		std::swap(first.trie_, second.trie_);

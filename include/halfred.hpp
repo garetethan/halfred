@@ -224,8 +224,8 @@ namespace halfred {
 			verbose_ = other.verbose_;
 			board_ = other.board_;
 			letter_weights_ = other.letter_weights_;
-			person_available_letter_counts_ = other.person_available_letter_counts_;
-			hal_available_letter_counts_ = other.hal_available_letter_counts_;
+			person_rack_ = other.person_rack_;
+			hal_rack_ = other.hal_rack_;
 			trie_ = Trie{other.valid_words_.begin(), other.valid_words_.end()};
 			cross_checks_horizontal_ = other.cross_checks_horizontal_;
 			cross_checks_vertical_ = other.cross_checks_vertical_;
@@ -256,14 +256,14 @@ namespace halfred {
 					return false;
 				}
 				get_location(person_play, in, out);
-				std::string possible_error = evaluate_play(person_play, person_available_letter_counts_);
+				std::string possible_error = evaluate_play(person_play, person_rack_);
 				if (person_play.score < 0) {
 					out << "That word cannot be played there. " << possible_error << std::endl;
 					person_play = null_play;
 				}
 			}
 			out << std::endl;
-			apply_play(person_play, person_available_letter_counts_, person_score_);
+			apply_play(person_play, person_rack_, person_score_);
 			return true;
 		}
 
@@ -275,7 +275,7 @@ namespace halfred {
 				return false;
 			}
 			out << "Halfred played \"" << hal_play.word << "\" at " << hal_play.row + 1 << index_to_letter(hal_play.col) << (hal_play.across ? 'a' : 'd') << " for " << hal_play.score << " points." << std::endl << std::endl;
-			apply_play(hal_play, hal_available_letter_counts_, hal_score_);
+			apply_play(hal_play, hal_rack_, hal_score_);
 			return true;
 		}
 
@@ -323,13 +323,13 @@ namespace halfred {
 			output_column_indexes(out);
 			out << "Your tiles: ";
 			for (unsigned int i = 0; i < letter_space_size + 1; ++i) {
-				out << std::string(person_available_letter_counts_.at(i), upper(index_to_letter(i)));
+				out << std::string(person_rack_.at(i), upper(index_to_letter(i)));
 			}
 			out << std::endl;
 			if (verbose_) {
 				out << "Halfred's tiles: ";
 				for (unsigned int i = 0; i < letter_space_size + 1; ++i) {
-					out << std::string(hal_available_letter_counts_.at(i), upper(index_to_letter(i)));
+					out << std::string(hal_rack_.at(i), upper(index_to_letter(i)));
 				}
 				out << std::endl;
 			}
@@ -361,12 +361,12 @@ namespace halfred {
 			return letter_weights_;
 		}
 
-		letter_tally person_available_letters() const noexcept {
-			return person_available_letter_counts_;
+		letter_tally person_rack() const noexcept {
+			return person_rack_;
 		}
 
-		letter_tally computer_available_letters() const noexcept {
-			return hal_available_letter_counts_;
+		letter_tally computer_rack() const noexcept {
+			return hal_rack_;
 		}
 
 		unsigned int person_score() const noexcept {
@@ -398,8 +398,8 @@ namespace halfred {
 		std::mt19937 random_bit_gen_;
 		std::uniform_real_distribution<float> random_letter_dist_;
 
-		letter_tally person_available_letter_counts_{};
-		letter_tally hal_available_letter_counts_{};
+		letter_tally person_rack_{};
+		letter_tally hal_rack_{};
 		unsigned int person_score_;
 		unsigned int hal_score_;
 
@@ -421,8 +421,8 @@ namespace halfred {
 
 			person_score_ = 0;
 			hal_score_ = 0;
-			draw_letters(person_available_letter_counts_, rack_size);
-			draw_letters(hal_available_letter_counts_, rack_size);
+			draw_letters(person_rack_, rack_size);
+			draw_letters(hal_rack_, rack_size);
 
 			// Set one cell on the board to a random letter
 			// The first play must connect to this letter
@@ -519,7 +519,7 @@ namespace halfred {
 								p.col = line_index;
 								p.across = false;
 							}
-							evaluate_play(p, hal_available_letter_counts_);
+							evaluate_play(p, hal_rack_);
 							if (p.score > best_option.score) {
 								best_option = p;
 							}
@@ -531,7 +531,7 @@ namespace halfred {
 			return best_option;
 		}
 
-		std::string evaluate_play(Play& p, const letter_tally& available_letter_counts) {
+		std::string evaluate_play(Play& p, const letter_tally& rack) {
 			p.score = 0;
 
 			if ((p.across
@@ -560,12 +560,12 @@ namespace halfred {
 					// If the cell is empty, let's see if we can fill it
 					else if (board_.at(row_i, col_i) == empty) {
 						// Do we have the required letter?
-						if (available_letter_counts.at(letter_as_index) > p.letters_used.at(letter_as_index)) {
+						if (rack.at(letter_as_index) > p.letters_used.at(letter_as_index)) {
 							++p.letters_used.at(letter_as_index);
 							p.score += letter_scores_.at(letter_as_index);
 						}
 						// Can we use a blank tile?
-						else if (available_letter_counts.back() > p.letters_used.back()) {
+						else if (rack.back() > p.letters_used.back()) {
 							++p.letters_used.back();
 							p.score += letter_scores_.back();
 						}
@@ -652,9 +652,9 @@ namespace halfred {
 			return "Valid play.";
 		}
 
-		void apply_play(const Play& p, letter_tally& available_letter_counts, unsigned int& score) {
+		void apply_play(const Play& p, letter_tally& rack, unsigned int& score) {
 			for (size_type i = 0; i < letter_space_size + 1; ++i) {
-				available_letter_counts.at(i) -= p.letters_used.at(i);
+				rack.at(i) -= p.letters_used.at(i);
 			}
 			if (p.across) {
 				for (size_type pos = 0; pos < p.word.size(); ++pos) {
@@ -670,7 +670,7 @@ namespace halfred {
 			score += p.score;
 			// Cross checks and partial scores can only be found after the board has been updated
 			update_cross_checks_and_partial_scores(p);
-			draw_letters(available_letter_counts, std::accumulate(p.letters_used.begin(), p.letters_used.end(), 0));
+			draw_letters(rack, std::accumulate(p.letters_used.begin(), p.letters_used.end(), 0));
 		}
 
 		void update_cross_checks_and_partial_scores(const Play& p) {

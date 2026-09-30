@@ -166,7 +166,7 @@ BOOST_FIXTURE_TEST_CASE(test_seed, SeededGameFixture) {
 
 	// Ensure we're working with the expected letters before later tests depend on them
 	const std::string hal_expected_letters{"AAAABCCQ"};
-	const std::string hal_actual_letters = letter_tally_to_string(hal_available_letter_counts_);
+	const std::string hal_actual_letters = letter_tally_to_string(hal_rack_);
 	std::stringstream hal_letters_message{};
 	hal_letters_message << "Actual: " << "\nExpected: " << hal_expected_letters << "\n";
 	BOOST_TEST(hal_actual_letters == hal_expected_letters, hal_letters_message.str());
@@ -175,7 +175,7 @@ BOOST_FIXTURE_TEST_CASE(test_seed, SeededGameFixture) {
 BOOST_FIXTURE_TEST_CASE(test_evaluate_play, SeededGameFixture) {
 	Play actual = {2, 6, true, "ace", -1, letter_tally{}};
 	const Play expected = {2, 6, true, "ace", 6, string_to_letter_tally("AC")};
-	evaluate_play(actual, hal_available_letter_counts_);
+	evaluate_play(actual, hal_rack_);
 	test_plays_equal(actual, expected, true, true);
 }
 
@@ -202,16 +202,16 @@ BOOST_FIXTURE_TEST_CASE(test_apply_play, SeededGameFixture) {
 	// Halfred's rack has AAAABCCQ
 	// Halfred's score is 0
 	constexpr unsigned int expected_score = 6;
-	apply_play(horizontal_play, hal_available_letter_counts_, hal_score_);
+	apply_play(horizontal_play, hal_rack_, hal_score_);
 	BOOST_TEST(board_.at(2, 6) == 'a');
 	BOOST_TEST(board_.at(2, 7) == 'c');
 	BOOST_TEST(board_.at(2, 8) == 'e');
 	BOOST_TEST(hal_score_ == expected_score);
-	BOOST_TEST(hal_available_letter_counts_.at(letter_to_index('A')) >= 3);
-	BOOST_TEST(hal_available_letter_counts_.at(letter_to_index('B')) >= 1);
-	BOOST_TEST(hal_available_letter_counts_.at(letter_to_index('C')) >= 1);
-	BOOST_TEST(hal_available_letter_counts_.at(letter_to_index('Q')) >= 1);
-	BOOST_TEST(std::accumulate(hal_available_letter_counts_.begin(), hal_available_letter_counts_.end(), 0) == Game::rack_size);
+	BOOST_TEST(hal_rack_.at(letter_to_index('A')) >= 3);
+	BOOST_TEST(hal_rack_.at(letter_to_index('B')) >= 1);
+	BOOST_TEST(hal_rack_.at(letter_to_index('C')) >= 1);
+	BOOST_TEST(hal_rack_.at(letter_to_index('Q')) >= 1);
+	BOOST_TEST(std::accumulate(hal_rack_.begin(), hal_rack_.end(), 0) == Game::rack_size);
 }
 
 // Ensure cross checks are appropriately updated after the "initial" random letter is placed
@@ -255,7 +255,7 @@ BOOST_FIXTURE_TEST_CASE(test_cross_checks_after_horizontal_play, SeededGameFixtu
 	Cells with '!' have their cross checks (horizontal and vertical) validated in this test
 	*/
 
-	apply_play(horizontal_play, hal_available_letter_counts_, hal_score_);
+	apply_play(horizontal_play, hal_rack_, hal_score_);
 
 	// Around A
 	// Above A
@@ -307,7 +307,7 @@ BOOST_FIXTURE_TEST_CASE(test_cross_checks_after_vertical_play, SeededGameFixture
 	Cells with '!' have their cross checks (horizontal and vertical) validated in this test
 	*/
 
-	apply_play(vertical_play, hal_available_letter_counts_, hal_score_);
+	apply_play(vertical_play, hal_rack_, hal_score_);
 
 	// Around A
 	// To the left of A
@@ -353,7 +353,7 @@ BOOST_FIXTURE_TEST_CASE(test_partial_scores_after_horizontal_play, SeededGameFix
 	4 ...|_|_|_|_|_|...
 	*/
 
-	apply_play(horizontal_play, hal_available_letter_counts_, hal_score_);
+	apply_play(horizontal_play, hal_rack_, hal_score_);
 
 	// Around A
 	BOOST_TEST(partial_scores_vertical_.at(1, 6) == letter_score_sum("A"));
@@ -394,7 +394,7 @@ BOOST_FIXTURE_TEST_CASE(test_partial_scores_after_vertical_play, SeededGameFixtu
 	4 ...|_|_|_|_|__|...
 	*/
 
-	apply_play(vertical_play, hal_available_letter_counts_, hal_score_);
+	apply_play(vertical_play, hal_rack_, hal_score_);
 
 	// Around A
 	BOOST_TEST(partial_scores_horizontal_.at(0, 7) == letter_score_sum("A"));
