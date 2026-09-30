@@ -17,8 +17,7 @@ g | h | i
 */
 const std::vector<char> test_board = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'};
 
-class LetterColumn {
-	public:
+struct LetterColumn {
 	ContiguousIterator<char> begin_;
 	ContiguousIterator<char> end_;
 
@@ -33,8 +32,7 @@ class LetterColumn {
 	}
 };
 
-class ContiguousIteratorFixture {
-	public:
+struct ContiguousIteratorFixture {
 	std::vector<char> board_;
 	LetterColumn letter_column;
 
@@ -45,8 +43,7 @@ class ContiguousIteratorFixture {
 	}
 };
 
-class BoardFixture {
-	public:
+struct BoardFixture {
 	Board<char> board_;
 
 	BoardFixture () : board_(test_board) {

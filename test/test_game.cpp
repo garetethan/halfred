@@ -21,6 +21,12 @@ using namespace halfred;
 // Intentionally avoid naming conflicts with board_dimension inside of fixtures that inherit from Game
 constexpr size_type board_width = 12;
 
+// Defined below
+struct ConstructorFixture;
+struct GameFixture;
+struct SeededGameFixture;
+
+// Defined at the bottom of this file
 void test_plays_equal(const Play& actual, const Play& expected, bool check_scores = false, bool check_letters_used = false);
 std::string letter_tally_to_string(const letter_tally& tally);
 letter_tally string_to_letter_tally(const std::string letters);
@@ -36,42 +42,31 @@ const std::string real_letter_scores_path = "../data/letter_scores.txt";
 
 const std::string whole_alphabet = cross_check_to_string(Game::true_cross_checks);
 
-class ConstructorFixture {
-	public:
+struct ConstructorFixture {
+	std::set<std::string> valid_words;
+	letter_tally letter_scores;
+
 	ConstructorFixture () {
 		std::ifstream valid_words_file = defensively_open(test_valid_words_path);
 		std::string word;
 		while (valid_words_file >> word) {
-			valid_words_.insert(word);
+			valid_words.insert(word);
 		}
 		std::ifstream letter_scores_file = defensively_open(test_letter_scores_path);
-		for (unsigned int& score : letter_scores_) {
+		for (unsigned int& score : letter_scores) {
 			letter_scores_file >> score;
 		}
 	}
-
-	const std::set<std::string>& valid_words() const noexcept {
-		return valid_words_;
-	}
-	const letter_tally& letter_scores() const noexcept {
-		return letter_scores_;
-	}
-
-	protected:
-	std::set<std::string> valid_words_;
-	letter_tally letter_scores_;
 };
 
 const ConstructorFixture constructor_fixture{};
 
-class GameFixture : public Game {
-	public:
+struct GameFixture : public Game {
 	// We can't have a data member in this class that's an instance of ConstructorFixture, because the Game parent class would be initialized before our data member (and therefore be constructed with garbage values).
-	GameFixture(unsigned int seed = 0) : Game{constructor_fixture.valid_words(), constructor_fixture.letter_scores(), board_width, false, seed} {}
+	GameFixture(unsigned int seed = 0) : Game{constructor_fixture.valid_words, constructor_fixture.letter_scores, board_width, false, seed} {}
 };
 
-class SeededGameFixture : public GameFixture {
-	public:
+struct SeededGameFixture : public GameFixture {
 	static constexpr unsigned int seed = 42;
 	static const Play horizontal_play;
 	static const Play vertical_play;
@@ -109,15 +104,24 @@ const Play SeededGameFixture::vertical_play{0, 8, false, "ace", 6, string_to_let
 
 BOOST_AUTO_TEST_SUITE(GameTests)
 
+BOOST_FIXTURE_TEST_CASE(test_trie, ConstructorFixture) {
+	Trie words{valid_words.begin(), valid_words.end()};
+	BOOST_TEST(words.contains("be"));
+	BOOST_TEST(words.contains("ace"));
+	BOOST_TEST(words.contains("aces"));
+	BOOST_TEST(!words.contains("bogus"));
+	BOOST_TEST(!words.contains("ac"));
+}
+
 BOOST_FIXTURE_TEST_CASE(test_game_constructor, ConstructorFixture) {
-	const Game game{valid_words(), board_width, false};
-	BOOST_TEST(game.valid_words().size() == valid_words().size());
+	const Game game{valid_words, board_width, false};
+	BOOST_TEST(game.valid_words().size() == valid_words.size());
 	BOOST_TEST(game.board_dimension() == board_width);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_game_constructor_with_letter_scores, ConstructorFixture) {
-	const Game game{valid_words(), letter_scores(), board_width, false};
-	BOOST_TEST(game.valid_words().size() == valid_words().size());
+	const Game game{valid_words, letter_scores, board_width, false};
+	BOOST_TEST(game.valid_words().size() == valid_words.size());
 	BOOST_TEST(game.letter_scores().at(7) == 7);
 	BOOST_TEST(game.board_dimension() == board_width);
 }
