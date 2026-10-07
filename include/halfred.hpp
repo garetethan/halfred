@@ -1,9 +1,11 @@
-// count_if, max, none_of, upper_bound
+// max, ranges::any_of, ranges::count_if, ranges::max_element, ranges::none_of, ranges::transform, ranges::upper_bound
 #include <algorithm>
 // array
 #include <array>
 // ifstream
 #include <fstream>
+// identity
+#include <functional>
 // setw
 #include <iomanip>
 // ios, ios::*, left, right, streamsize
@@ -28,6 +30,8 @@
 #include <stdexcept>
 // string, stoi
 #include <string>
+// as_const, pair
+#include <utility>
 // vector
 #include <vector>
 
@@ -41,6 +45,8 @@ namespace halfred {
 	struct Play;
 	class StreamHandler;
 	class Game;
+	template <typename... Args>
+	std::string stringify(Args... args);
 
 	// Defined in halfred.cpp
 	int play_game(std::string valid_words_path, std::string letter_scores_path = "", const size_type board_dimension = 16, const bool verbose = false, std::istream& in = std::cin, std::ostream& out = std::cout);
@@ -51,6 +57,9 @@ namespace halfred {
 	char lower(const char up);
 	char upper(const char lo);
 
+	constexpr size_type letter_space_size = 26;
+
+	// Serves as a fill constructor for const arrays
 	template <size_type N, typename T>
 	constexpr std::array<T, N> filled_array(const T& val) {
 		std::array<T, N> arr;
@@ -58,9 +67,42 @@ namespace halfred {
 		return arr;
 	}
 
-	constexpr size_type letter_space_size = 26;
-	using letter_tally = std::array<unsigned int, letter_space_size + 1>;
+	// I've considered using a smaller type instead of int, but Game uses a LetterTally to count up all letters in all valid words
+	// So for long word lists a single count could be in the high hundreds of thousands or low millions
+	class LetterTally : public std::array<unsigned int, letter_space_size + 1> {
+		public:
 
+		// Ensure the array is value-initialized, so that it gets zeroed out
+		LetterTally() : array() {}
+
+		LetterTally(const std::string& letters) : array() {
+			for (const char& letter : letters) {
+				++at(letter_to_index(letter));
+			}
+		}
+
+		LetterTally operator-(const LetterTally& other) const {
+			LetterTally diff{};
+			for (size_type i = 0; i < size(); ++i) {
+				diff.at(i) = this->at(i) - other.at(i);
+			}
+			return diff;
+		}
+
+		unsigned int accumulate() const {
+			return std::accumulate(begin(), end(), 0);
+		}
+
+		std::string to_string() const {
+			std::string letters;
+			for (size_type tally_i = 0; tally_i < size(); ++tally_i) {
+				for (unsigned int count = 0; count < at(tally_i); ++count) {
+					letters += upper(index_to_letter(tally_i));
+				}
+			}
+			return letters;
+		}
+	};
 
 	class Trie {
 		public:
@@ -90,6 +132,10 @@ namespace halfred {
 			return bool(children_.at(letter_to_index(letter)));
 		}
 
+		bool has(const size_type index) const {
+			return bool(children_.at(index));
+		}
+
 		const Trie* get(const char letter) const {
 			// unique_ptr.get gives nullptr if it doesn't own a Trie
 			return children_.at(letter_to_index(letter)).get();
@@ -97,6 +143,14 @@ namespace halfred {
 
 		Trie* get(const char letter) {
 			return children_.at(letter_to_index(letter)).get();
+		}
+
+		const Trie* get(size_type index) const {
+			return children_.at(index).get();
+		}
+
+		Trie* get(size_type index) {
+			return children_.at(index).get();
 		}
 
 		const Trie* subtrie(const std::string& word) const {
@@ -124,6 +178,32 @@ namespace halfred {
 			}
 		}
 
+		std::string to_string() const {
+			std::stringstream output{};
+			std::array<bool, letter_space_size> children_exist;
+			std::ranges::transform(children_, children_exist.begin(), [](const auto& p) {return static_cast<bool>(p);});
+			if (std::ranges::any_of(children_exist, [](auto b) {return b;})) {
+				output << "Trie with children ";
+				for (size_type letter_i = 0; letter_i < letter_space_size; ++letter_i) {
+					if (children_exist.at(letter_i)) {
+						output << upper(index_to_letter(letter_i));
+					}
+				}
+			}
+			// Trie is a leaf
+			else {
+				output << "Trie with no children";
+			}
+			if (is_end_) {
+				output << " (endpoint)";
+			}
+			return output.str();
+		}
+
+		bool is_end() const noexcept {
+			return is_end_;
+		}
+
 		protected:
 		// Does this node's parent represent the end of a valid word?
 		bool is_end_;
@@ -137,12 +217,10 @@ namespace halfred {
 		bool across;
 		std::string word;
 		int score;
-		letter_tally letters_used;
+		LetterTally letters_used;
 
 		std::string to_string() const {
-			std::stringstream output{};
-			output << "Play \"" << word << "\" at " << row + 1 << index_to_letter(col) << " (" << row << ", " << col << ") " << (across ? "across" : "down") << " for a score of " << score;
-			return output.str();
+			return stringify("Play \"", word, "\" at ", row + 1, index_to_letter(col), " (", row, ", ", col, ") ", across ? "across" : "down", " for a score of ", score);
 		}
 	};
 
@@ -166,7 +244,7 @@ namespace halfred {
 	class Game {
 		public:
 		static constexpr unsigned short lowercase_offset = static_cast<unsigned short>('a');
-		static constexpr size_type rack_size = 8;
+		static constexpr unsigned int rack_size = 8;
 		static constexpr char empty = '_';
 		static constexpr char wild = '*';
 		// This limit must be less than the number of letters in the English alphabet, lest we run out of column indexes when printing the board
@@ -182,7 +260,7 @@ namespace halfred {
 		// Attempting to use a default initialized Game causes undefined behaviour
 		Game() : board_dimension_(0), verbose_(false), seed_(0) {}
 
-		Game(std::set<std::string> valid_words, letter_tally letter_scores, const size_type board_dimension, const bool verbose = false, const unsigned int seed = 0) :
+		Game(std::set<std::string> valid_words, LetterTally letter_scores, const size_type board_dimension, const bool verbose = false, const unsigned int seed = 0) :
 				valid_words_(valid_words),
 				letter_scores_(letter_scores),
 				board_dimension_(board_dimension),
@@ -210,7 +288,7 @@ namespace halfred {
 				seed_(seed) {
 
 			// Calculate letter scores
-			letter_tally letter_counts{};
+			LetterTally letter_counts;
 			unsigned int total_letters = 0;
 			for (const std::string& word : valid_words_) {
 				for (const char& le : word) {
@@ -283,7 +361,7 @@ namespace halfred {
 
 		int computer_turn(std::ostream& out = std::cout) {
 			StreamHandler{out};
-			Play hal_play = best_overall();
+			Play hal_play = choose_hal_play();
 			if (hal_play.score < 1) {
 				out << "Halfred does not see any possible plays. How about you?" << std::endl << std::endl;
 				return false;
@@ -297,7 +375,7 @@ namespace halfred {
 		bool board_occupied_count() const {
 			size_type count = 0;
 			for (const BoardLine<char>& row : board_) {
-				count += std::count_if(row.begin(), row.end(), [](char c){return c != empty;});
+				count += std::ranges::count_if(row, [](char c){return c != empty;});
 			}
 			return count;
 		}
@@ -355,7 +433,7 @@ namespace halfred {
 			return valid_words_;
 		}
 
-		letter_tally letter_scores() const noexcept {
+		LetterTally letter_scores() const noexcept {
 			return letter_scores_;
 		}
 
@@ -375,12 +453,12 @@ namespace halfred {
 			return letter_weights_;
 		}
 
-		letter_tally person_rack() const noexcept {
-			return person_rack_;
+		std::string person_rack() const {
+			return person_rack_.to_string();
 		}
 
-		letter_tally computer_rack() const noexcept {
-			return hal_rack_;
+		std::string computer_rack() const {
+			return hal_rack_.to_string();
 		}
 
 		unsigned int person_score() const noexcept {
@@ -396,7 +474,7 @@ namespace halfred {
 
 		protected:
 		std::set<std::string> valid_words_;
-		letter_tally letter_scores_;
+		LetterTally letter_scores_;
 		size_type board_dimension_;
 		bool verbose_;
 		unsigned int seed_;
@@ -408,20 +486,18 @@ namespace halfred {
 		Board<int> partial_scores_horizontal_;
 		Board<int> partial_scores_vertical_;
 		std::array<float, letter_space_size + 1> letter_weights_;
-		std::random_device random_dev_{};
+		std::random_device random_dev_;
 		std::mt19937 random_bit_gen_;
 		std::uniform_real_distribution<float> random_letter_dist_;
 
-		letter_tally person_rack_{};
-		letter_tally hal_rack_{};
+		LetterTally person_rack_;
+		LetterTally hal_rack_;
 		unsigned int person_score_;
 		unsigned int hal_score_;
 
 		void init() {
 			if (board_dimension_ < 2 || board_dimension_ > max_board_dimension) {
-				std::stringstream message{};
-				message << "Board dimension of " << board_dimension_ << " is outside the allowable range of 2 - " << max_board_dimension << ".\n";
-				throw std::runtime_error{message.str()};
+				throw std::runtime_error{stringify("Board dimension of ", board_dimension_, " is outside the allowable range of 2 - ", max_board_dimension, ".\n")};
 			}
 			letter_weights_.front() = 1.f / std::max(letter_scores_.front(), 1U);
 			for (size_type i = 1; i < letter_space_size; ++i) {
@@ -435,8 +511,8 @@ namespace halfred {
 
 			person_score_ = 0;
 			hal_score_ = 0;
-			draw_letters(person_rack_, rack_size);
-			draw_letters(hal_rack_, rack_size);
+			draw_letters(person_rack_);
+			draw_letters(hal_rack_);
 
 			// Set one cell on the board to a random letter
 			// The first play must connect to this letter
@@ -451,19 +527,20 @@ namespace halfred {
 			board_.at(initial_letter_row, initial_letter_col) = initial_letter;
 
 			// Update cross checks to account for initial letter
-			Play initial_letter_play{initial_letter_row, initial_letter_col, true, std::string{initial_letter}, 0, letter_tally{}};
+			Play initial_letter_play{initial_letter_row, initial_letter_col, true, std::string{initial_letter}, 0, LetterTally{}};
 			update_cross_checks_and_partial_scores(initial_letter_play);
 		}
 
 		unsigned int random_letter_as_index() {
-			unsigned int index = std::upper_bound(letter_weights_.begin(), letter_weights_.end(), random_letter_dist_(random_bit_gen_)) - letter_weights_.begin();
+			unsigned int index = std::ranges::upper_bound(letter_weights_, random_letter_dist_(random_bit_gen_)) - letter_weights_.begin();
 			return index;
 		}
 
 		// Randomly select tiles to be added to available letters
-		void draw_letters(letter_tally& counts, const unsigned int n) {
-			for (unsigned int i = 0; i < n; ++i) {
-				++counts.at(random_letter_as_index());
+		void draw_letters(LetterTally& rack) {
+			const int draw_count = rack_size - rack.accumulate();
+			for (unsigned int i = 0; i < draw_count; ++i) {
+				++rack.at(random_letter_as_index());
 			}
 		}
 
@@ -483,69 +560,185 @@ namespace halfred {
 		}
 
 		// Find the best valid play anywhere on the board
-		Play best_overall() {
-			Play best_option = null_play;
+		Play choose_hal_play() {
+			Play overall_choice = null_play;
+			std::vector<Play> line_options;
+			Play line_choice;
 			for (size_type i = 0; i < board_dimension_; ++i) {
 				// Best in row
-				Play option = best_in_line(i, true);
-				if (option.score > best_option.score) {
-					best_option = option;
+				line_options = find_plays_in_line(i, true);
+				if (!line_options.empty()) {
+					line_choice = *std::ranges::max_element(line_options, compare_play_scores);
+					overall_choice = std::max(overall_choice, line_choice, compare_play_scores);
 				}
 				// Best in col
-				option = best_in_line(i, false);
-				if (option.score > best_option.score) {
-					best_option = option;
+				line_options = find_plays_in_line(i, false);
+				if (!line_options.empty()) {
+					line_choice = *std::ranges::max_element(line_options, compare_play_scores);
+					overall_choice = std::max(overall_choice, line_choice, compare_play_scores);
 				}
 			}
-			return best_option;
+			return overall_choice;
+		}
+
+		static bool compare_play_scores(Play first, Play second) {
+			return first.score < second.score;
 		}
 
 		// Determine and return the best possible valid play in a row
 		// is_row = false for a column
-		Play best_in_line(const size_type line_index, const bool is_row = true) {
+		std::vector<Play> find_plays_in_line(const size_type line_index, const bool is_row = true) {
 			BoardLine<char>& board_line = is_row ? board_.row(line_index) : board_.col(line_index);
-			std::map<size_type, char> row_letters{};
-			for (size_type i = 0; i < board_dimension_; ++i) {
-				if (board_line.at(i) != empty) {
-					row_letters.emplace(i, board_line.at(i));
+			const BoardLine<std::array<bool, letter_space_size>>& cross_checks = is_row ? cross_checks_horizontal_.row(line_index) : cross_checks_vertical_.col(line_index);
+			std::vector<size_type> anchor_cells;
+			for (size_type cross_i = 0; cross_i < board_dimension_; ++cross_i) {
+				if (board_line.at(cross_i) == empty && cross_checks.at(cross_i) != true_cross_checks) {
+					anchor_cells.push_back(cross_i);
 				}
 			}
+			std::vector<std::pair<Play, const Trie*>> left_parts;
+			for (auto anchor = anchor_cells.cbegin(); anchor != anchor_cells.cend(); ++anchor) {
+				const size_type anchor_row = is_row ? line_index : *anchor;
+				const size_type anchor_col = is_row ? *anchor : line_index;
+				// Left part will be entirely from the rack
+				if (*anchor > 0 && board_line.at(*anchor - 1) == empty) {
+					size_type max_size = (*anchor == anchor_cells.front()) ? *anchor : (*anchor - *(anchor - 1)) - 1;
+					const AnchorData anchor_data{anchor_row, anchor_col, max_size, cross_checks, is_row};
+					find_left_parts(anchor_data, hal_rack_, left_parts);
+				}
+				// Left part is already entirely on the board
+				else {
+					std::string prefix;
+					for (size_type left_i = *(anchor - 1) + 1; left_i < *anchor; ++left_i) {
+						prefix += board_line.at(left_i);
+					}
+					Play p = {anchor_row, anchor_col, is_row, prefix, 0, LetterTally{}};
+					const Trie* subtrie = trie_.subtrie(prefix);
+					if (subtrie != nullptr) {
+						left_parts.push_back(std::make_pair(p, subtrie));
+					}
+				}
 
-			Play best_option = null_play;
-			for (const auto& index_letter_pair : row_letters) {
-				size_type index_in_row = index_letter_pair.first;
-				char letter = index_letter_pair.second;
-				for (const std::string& word : valid_words_) {
-					std::string::size_type pos = word.find(letter);
-					while (pos != std::string::npos) {
-						auto word_start = board_line.begin() + index_in_row - pos;
-						auto word_end = word_start + word.size();
-						if (word_start >= board_line.begin() && word_start < board_line.end() && word_end <= board_line.end()) {
-							Play p = null_play;
-							p.word = word;
-							if (is_row) {
-								p.row = line_index;
-								p.col = index_in_row - pos;
-								p.across = true;
+			}
+
+			std::vector<Play> moves;
+			for (std::pair<Play, const Trie*> left_part : left_parts) {
+				LetterTally remaining_rack = hal_rack_ - LetterTally{left_part.first.word};
+				find_right_parts(left_part.first, left_part.second, remaining_rack, is_row, moves);
+			}
+
+			// Calculate scores
+			const BoardLine<int>& partial_scores = is_row ? partial_scores_vertical_.row(line_index) : partial_scores_horizontal_.col(line_index);
+			for (Play& p : moves) {
+				int word_score = 0;
+				for (const char letter : p.word) {
+					word_score += letter_scores_.at(letter_to_index(letter));
+				}
+				const auto word_start = partial_scores.begin() + (is_row ? p.col : p.row);
+				const int partial_score = std::accumulate(word_start, word_start + p.word.size(), 0);
+				p.score = word_score + partial_score;
+			}
+
+			return moves;
+		}
+
+		struct AnchorData {
+			const size_type row;
+			const size_type col;
+			const size_type max_size;
+			const BoardLine<std::array<bool, letter_space_size>>& cross_checks{};
+			const bool is_row = true;
+		};
+
+		void find_left_parts(const AnchorData& anchor, const LetterTally& initial_rack, std::vector<std::pair<Play, const Trie*>>& left_parts) {
+			LetterTally remaining_rack = initial_rack;
+			find_left_parts_core(anchor, remaining_rack, "", &trie_, left_parts);
+		}
+
+		void find_left_parts_core(const AnchorData& anchor, LetterTally remaining_rack, std::string prefix, const Trie* subtrie, std::vector<std::pair<Play, const Trie*>>& left_parts) {
+			if (prefix.size() <= anchor.max_size) {
+				for (size_type rack_i = 0; rack_i < letter_space_size; ++rack_i) {
+					if (remaining_rack.at(rack_i) > 0 || remaining_rack.at(letter_to_index(wild)) > 0) {
+						const Trie* branch = subtrie->get(rack_i);
+						if (branch != nullptr) {
+							if (remaining_rack.at(rack_i) > 0) {
+								--remaining_rack.at(rack_i);
+							}
+							// Use a wild
+							else {
+								--remaining_rack.at(letter_to_index(wild));
+							}
+							prefix += index_to_letter(rack_i);
+							Play p;
+							if (anchor.is_row) {
+								p = Play{anchor.row, anchor.col - static_cast<size_type>(prefix.size()), anchor.is_row, prefix, 0, LetterTally{}};
 							}
 							else {
-								p.row = index_in_row - pos;
-								p.col = line_index;
-								p.across = false;
+								p = Play{anchor.row - static_cast<size_type>(prefix.size()), anchor.col, anchor.is_row, prefix, 0, LetterTally{}};
 							}
-							evaluate_play(p, hal_rack_);
-							if (p.score > best_option.score) {
-								best_option = p;
-							}
+							left_parts.push_back(std::make_pair(p, branch));
+							find_left_parts_core(anchor, remaining_rack, prefix, branch, left_parts);
 						}
-						pos = word.find(letter, pos + 1);
 					}
 				}
 			}
-			return best_option;
 		}
 
-		std::string evaluate_play(Play& p, const letter_tally& rack) {
+		void find_right_parts(Play p, const Trie* subtrie, LetterTally remaining_rack, const bool is_row, std::vector<Play>& moves) {
+			char cell;
+			const std::array<bool, letter_space_size>* cross_checks;
+			if (is_row) {
+				if (p.col + p.word.size() >= board_dimension_) {
+					return;
+				}
+				cell = board_.at(p.row, p.col + p.word.size());
+				cross_checks = &cross_checks_vertical_.at(p.row, p.col + p.word.size());
+			}
+			// Column
+			else {
+				if (p.row + p.word.size() >= board_dimension_) {
+					return;
+				}
+				cell = board_.at(p.row + p.word.size(), p.col);
+				cross_checks = &cross_checks_horizontal_.at(p.row + p.word.size(), p.col);
+			}
+			std::vector<size_type> possible_letter_indexes;
+			if (cell == empty) {
+				for (size_type letter_i = 0; letter_i < letter_space_size; ++letter_i) {
+					if ((remaining_rack.at(letter_i) > 0 || remaining_rack.at(letter_to_index(wild)) > 0) && cross_checks->at(letter_i)) {
+						possible_letter_indexes.push_back(letter_i);
+					}
+				}
+			}
+			// Cell is already filled
+			else {
+				possible_letter_indexes.push_back(letter_to_index(cell));
+			}
+
+			for (const size_type letter_i : possible_letter_indexes) {
+				const Trie* branch = subtrie->get(letter_i);
+				if (branch != nullptr) {
+					Play new_play = p;
+					new_play.word += index_to_letter(letter_i);
+					LetterTally new_rack = remaining_rack;
+					if (index_to_letter(letter_i) != cell) {
+						if (new_rack.at(letter_i) > 0) {
+							--new_rack.at(letter_i);
+						}
+						// Use a wild
+						else if (new_rack.at(letter_to_index(wild)) > 0) {
+							--new_rack.at(letter_to_index(wild));
+						}
+					}
+					if (branch->is_end()) {
+						moves.push_back(new_play);
+					}
+					find_right_parts(new_play, branch, new_rack, is_row, moves);
+				}
+			}
+		}
+
+		std::string evaluate_play(Play& p, const LetterTally& rack) {
 			p.score = 0;
 
 			if ((p.across
@@ -653,7 +846,7 @@ namespace halfred {
 					return "Some part of the word would be beyond the edges of the board.";
 				}
 			}
-			if (std::none_of(p.letters_used.begin(), p.letters_used.end(), [](auto k){return k > 0;})) {
+			if (std::ranges::none_of(p.letters_used, [](auto k){return k > 0;})) {
 				p.score = -1;
 				return "The word is already on the board in that position. You wouldn't be adding anything to it.";
 			}
@@ -666,7 +859,7 @@ namespace halfred {
 			return "Valid play.";
 		}
 
-		void apply_play(const Play& p, letter_tally& rack, unsigned int& score) {
+		void apply_play(const Play& p, LetterTally& rack, unsigned int& score) {
 			for (size_type i = 0; i < letter_space_size + 1; ++i) {
 				rack.at(i) -= p.letters_used.at(i);
 			}
@@ -684,7 +877,7 @@ namespace halfred {
 			score += p.score;
 			// Cross checks and partial scores can only be found after the board has been updated
 			update_cross_checks_and_partial_scores(p);
-			draw_letters(rack, std::accumulate(p.letters_used.begin(), p.letters_used.end(), 0));
+			draw_letters(rack);
 		}
 
 		void update_cross_checks_and_partial_scores(const Play& p) {
@@ -802,6 +995,13 @@ namespace halfred {
 		}
 
 	};
+
+	template <typename... Args>
+	std::string stringify(Args... args) {
+		std::stringstream out;
+		(out << ... << args);
+		return out.str();
+	}
 
 	void swap(Game& first, Game& second);
 }

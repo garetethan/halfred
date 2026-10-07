@@ -25,6 +25,23 @@ namespace halfred {
 		return static_cast<char>(std::toupper(static_cast<unsigned char>(lo)));
 	}
 
+	size_type letter_to_index(char le) {
+		if (le == Game::wild) {
+			return letter_space_size;
+		}
+		else if (std::isupper(static_cast<unsigned char>(le))) {
+			le = lower(le);
+		}
+		return static_cast<size_type>(le) - Game::lowercase_offset;
+	}
+
+	char index_to_letter(size_type ind) {
+		if (ind == letter_space_size) {
+			return Game::wild;
+		}
+		return static_cast<char>(ind + Game::lowercase_offset);
+	}
+
 	std::ifstream defensively_open(const std::string path) {
 		std::ifstream file_{path};
 		if (!file_.is_open()) {
@@ -50,25 +67,8 @@ namespace halfred {
 		return input;
 	}
 
-	const Play Game::null_play{0, 0, true, "", -1, letter_tally{}};
+	const Play Game::null_play{0, 0, true, "", -1, LetterTally{}};
 	const std::regex Game::valid_location_pattern{"^(\\d+)([A-Za-z])([ADad])$"};
-
-	size_type letter_to_index(char le) {
-		if (le == Game::wild) {
-			return letter_space_size;
-		}
-		else if (std::isupper(static_cast<unsigned char>(le))) {
-			le = lower(le);
-		}
-		return static_cast<size_type>(le) - Game::lowercase_offset;
-	}
-
-	char index_to_letter(size_type ind) {
-		if (ind == letter_space_size) {
-			return Game::wild;
-		}
-		return static_cast<char>(ind + Game::lowercase_offset);
-	}
 
 	void swap(Game& first, Game& second) {
 		std::swap(first.valid_words_, second.valid_words_);
@@ -129,7 +129,7 @@ namespace halfred {
 		}
 		else {
 			std::ifstream letter_scores_file = defensively_open(letter_scores_path);
-			letter_tally letter_scores;
+			LetterTally letter_scores;
 			for (unsigned int& score : letter_scores) {
 				letter_scores_file >> score;
 				if (!letter_scores_file) {
