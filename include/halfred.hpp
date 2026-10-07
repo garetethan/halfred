@@ -179,10 +179,10 @@ namespace halfred {
 		}
 
 		std::string to_string() const {
-			std::stringstream output{};
+			std::stringstream output;
 			std::array<bool, letter_space_size> children_exist;
 			std::ranges::transform(children_, children_exist.begin(), [](const auto& p) {return static_cast<bool>(p);});
-			if (std::ranges::any_of(children_exist, [](auto b) {return b;})) {
+			if (std::ranges::any_of(children_exist, std::identity{})) {
 				output << "Trie with children ";
 				for (size_type letter_i = 0; letter_i < letter_space_size; ++letter_i) {
 					if (children_exist.at(letter_i)) {
@@ -668,16 +668,16 @@ namespace halfred {
 							else {
 								--remaining_rack.at(letter_to_index(wild));
 							}
-							prefix += index_to_letter(rack_i);
 							Play p;
+							std::string new_prefix = prefix + index_to_letter(rack_i);
 							if (anchor.is_row) {
-								p = Play{anchor.row, anchor.col - static_cast<size_type>(prefix.size()), anchor.is_row, prefix, 0, LetterTally{}};
+								p = Play{anchor.row, anchor.col - static_cast<size_type>(new_prefix.size()), anchor.is_row, new_prefix, 0, LetterTally{}};
 							}
 							else {
-								p = Play{anchor.row - static_cast<size_type>(prefix.size()), anchor.col, anchor.is_row, prefix, 0, LetterTally{}};
+								p = Play{anchor.row - static_cast<size_type>(new_prefix.size()), anchor.col, anchor.is_row, new_prefix, 0, LetterTally{}};
 							}
 							left_parts.push_back(std::make_pair(p, branch));
-							find_left_parts_core(anchor, remaining_rack, prefix, branch, left_parts);
+							find_left_parts_core(anchor, remaining_rack, new_prefix, branch, left_parts);
 						}
 					}
 				}
