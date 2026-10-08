@@ -219,8 +219,15 @@ namespace halfred {
 		int score;
 		LetterTally letters_used;
 
+		auto operator<=>(const Play& other) const = default;
+
 		std::string to_string() const {
 			return stringify("Play \"", word, "\" at ", row + 1, index_to_letter(col), " (", row, ", ", col, ") ", across ? "across" : "down", " for a score of ", score);
+		}
+
+		// This function can be passed to std::max_element to find the highest-scoring play in a range
+		static bool compare_by_score(const Play& first, const Play& second) {
+			return first.score < second.score;
 		}
 	};
 
@@ -568,21 +575,17 @@ namespace halfred {
 				// Best in row
 				line_options = find_plays_in_line(i, true);
 				if (!line_options.empty()) {
-					line_choice = *std::ranges::max_element(line_options, compare_play_scores);
-					overall_choice = std::max(overall_choice, line_choice, compare_play_scores);
+					line_choice = *std::ranges::max_element(line_options, Play::compare_by_score);
+					overall_choice = std::max(overall_choice, line_choice, Play::compare_by_score);
 				}
 				// Best in col
 				line_options = find_plays_in_line(i, false);
 				if (!line_options.empty()) {
-					line_choice = *std::ranges::max_element(line_options, compare_play_scores);
-					overall_choice = std::max(overall_choice, line_choice, compare_play_scores);
+					line_choice = *std::ranges::max_element(line_options, Play::compare_by_score);
+					overall_choice = std::max(overall_choice, line_choice, Play::compare_by_score);
 				}
 			}
 			return overall_choice;
-		}
-
-		static bool compare_play_scores(Play first, Play second) {
-			return first.score < second.score;
 		}
 
 		// Determine and return the best possible valid play in a row
@@ -600,19 +603,19 @@ namespace halfred {
 			for (auto anchor = anchor_cells.cbegin(); anchor != anchor_cells.cend(); ++anchor) {
 				const size_type anchor_row = is_row ? line_index : *anchor;
 				const size_type anchor_col = is_row ? *anchor : line_index;
+				size_type max_size = (anchor == anchor_cells.begin()) ? *anchor : (*anchor - *(anchor - 1)) - 1;
 				// Left part will be entirely from the rack
 				if (*anchor > 0 && board_line.at(*anchor - 1) == empty) {
-					size_type max_size = (*anchor == anchor_cells.front()) ? *anchor : (*anchor - *(anchor - 1)) - 1;
 					const AnchorData anchor_data{anchor_row, anchor_col, max_size, cross_checks, is_row};
 					find_left_parts(anchor_data, hal_rack_, left_parts);
 				}
 				// Left part is already entirely on the board
 				else {
 					std::string prefix;
-					for (size_type left_i = *(anchor - 1) + 1; left_i < *anchor; ++left_i) {
+					for (size_type left_i = *anchor - max_size; left_i < *anchor; ++left_i) {
 						prefix += board_line.at(left_i);
 					}
-					Play p = {anchor_row, anchor_col, is_row, prefix, 0, LetterTally{}};
+					Play p = is_row ? Play{line_index, *anchor - max_size, is_row, prefix, 0, LetterTally{}} : Play{*anchor - max_size, line_index, is_row, prefix, 0, LetterTally{}};
 					const Trie* subtrie = trie_.subtrie(prefix);
 					if (subtrie != nullptr) {
 						left_parts.push_back(std::make_pair(p, subtrie));
@@ -730,7 +733,8 @@ namespace halfred {
 							--new_rack.at(letter_to_index(wild));
 						}
 					}
-					if (branch->is_end()) {
+					const char next_cell = is_row ? board_.at(new_play.row, new_play.col + new_play.word.size()) : board_.at(new_play.row + new_play.word.size(), new_play.col);
+					if (branch->is_end() && next_cell == empty) {
 						moves.push_back(new_play);
 					}
 					find_right_parts(new_play, branch, new_rack, is_row, moves);
