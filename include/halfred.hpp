@@ -601,11 +601,11 @@ namespace halfred {
 			}
 			std::vector<std::pair<Play, const Trie*>> left_parts;
 			for (auto anchor = anchor_cells.cbegin(); anchor != anchor_cells.cend(); ++anchor) {
-				const size_type anchor_row = is_row ? line_index : *anchor;
-				const size_type anchor_col = is_row ? *anchor : line_index;
 				size_type max_size = (anchor == anchor_cells.begin()) ? *anchor : (*anchor - *(anchor - 1)) - 1;
 				// Left part will be entirely from the rack
 				if (*anchor > 0 && board_line.at(*anchor - 1) == empty) {
+					const size_type anchor_row = is_row ? line_index : *anchor;
+					const size_type anchor_col = is_row ? *anchor : line_index;
 					const AnchorData anchor_data{anchor_row, anchor_col, max_size, cross_checks, is_row};
 					find_left_parts(anchor_data, hal_rack_, left_parts);
 				}
@@ -615,7 +615,7 @@ namespace halfred {
 					for (size_type left_i = *anchor - max_size; left_i < *anchor; ++left_i) {
 						prefix += board_line.at(left_i);
 					}
-					Play p = is_row ? Play{line_index, *anchor - max_size, is_row, prefix, 0, LetterTally{}} : Play{*anchor - max_size, line_index, is_row, prefix, 0, LetterTally{}};
+					Play p = Play{is_row ? line_index : *anchor - max_size, is_row ? *anchor - max_size : line_index, is_row, prefix, 0, LetterTally{}};
 					const Trie* subtrie = trie_.subtrie(prefix);
 					if (subtrie != nullptr) {
 						left_parts.push_back(std::make_pair(p, subtrie));
@@ -659,31 +659,40 @@ namespace halfred {
 		}
 
 		void find_left_parts_core(const AnchorData& anchor, LetterTally remaining_rack, std::string prefix, const Trie* subtrie, std::vector<std::pair<Play, const Trie*>>& left_parts) {
-			if (prefix.size() <= anchor.max_size) {
-				for (size_type rack_i = 0; rack_i < letter_space_size; ++rack_i) {
-					if (remaining_rack.at(rack_i) > 0 || remaining_rack.at(letter_to_index(wild)) > 0) {
-						const Trie* branch = subtrie->get(rack_i);
-						if (branch != nullptr) {
-							if (remaining_rack.at(rack_i) > 0) {
-								--remaining_rack.at(rack_i);
-							}
-							// Use a wild
-							else {
-								--remaining_rack.at(letter_to_index(wild));
-							}
-							Play p;
-							std::string new_prefix = prefix + index_to_letter(rack_i);
-							if (anchor.is_row) {
-								p = Play{anchor.row, anchor.col - static_cast<size_type>(new_prefix.size()), anchor.is_row, new_prefix, 0, LetterTally{}};
-							}
-							else {
-								p = Play{anchor.row - static_cast<size_type>(new_prefix.size()), anchor.col, anchor.is_row, new_prefix, 0, LetterTally{}};
-							}
-							left_parts.push_back(std::make_pair(p, branch));
-							find_left_parts_core(anchor, remaining_rack, new_prefix, branch, left_parts);
-						}
-					}
+			// If we don't have space to make the prefix any longer
+			if (prefix.size() > anchor.max_size
+				|| (anchor.is_row && anchor.col <= prefix.size())
+				|| (!anchor.is_row && anchor.row <= prefix.size())) {
+				return;
+			}
+			for (size_type rack_i = 0; rack_i < letter_space_size; ++rack_i) {
+				// If we don't have any more of this letter to play
+				if (remaining_rack.at(rack_i) <= 0 && remaining_rack.at(letter_to_index(wild)) <= 0) {
+					continue;
 				}
+				const Trie* branch = subtrie->get(rack_i);
+				// If no words with this prefix exist
+				if (branch == nullptr) {
+					continue;
+				}
+				// Avoid using a wild if we can
+				if (remaining_rack.at(rack_i) > 0) {
+					--remaining_rack.at(rack_i);
+				}
+				// Use a wild
+				else {
+					--remaining_rack.at(letter_to_index(wild));
+				}
+				Play p;
+				std::string new_prefix = prefix + index_to_letter(rack_i);
+				if (anchor.is_row) {
+					p = Play{anchor.row, anchor.col - static_cast<size_type>(new_prefix.size()), anchor.is_row, new_prefix, 0, LetterTally{}};
+				}
+				else {
+					p = Play{anchor.row - static_cast<size_type>(new_prefix.size()), anchor.col, anchor.is_row, new_prefix, 0, LetterTally{}};
+				}
+				left_parts.push_back(std::make_pair(p, branch));
+				find_left_parts_core(anchor, remaining_rack, new_prefix, branch, left_parts);
 			}
 		}
 
@@ -899,6 +908,7 @@ namespace halfred {
 						update_cross_check_and_partial_score_cells(cross_line, p.row - 1, cross_checks_vertical_.at(p.row - 1, col_i), partial_scores_vertical_.at(p.row - 1, col_i));
 					}
 					// Row being played in
+					cross_checks_horizontal_.at(p.row, col_i) = false_cross_checks;
 					cross_checks_vertical_.at(p.row, col_i) = false_cross_checks;
 					// Row below
 					if (p.row < board_dimension_ - 1) {
@@ -927,6 +937,7 @@ namespace halfred {
 					}
 					// Column being played in
 					cross_checks_horizontal_.at(row_i, p.col) = false_cross_checks;
+					cross_checks_vertical_.at(row_i, p.col) = false_cross_checks;
 					// Column to the right
 					if (p.col < board_dimension_ - 1) {
 						update_cross_check_and_partial_score_cells(cross_line, p.col + 1, cross_checks_horizontal_.at(row_i, p.col + 1), partial_scores_horizontal_.at(row_i, p.col + 1));
