@@ -527,7 +527,8 @@ namespace halfred {
 			while (initial_letter == wild) {
 				initial_letter = index_to_letter(random_letter_as_index());
 			}
-			std::uniform_int_distribution<unsigned int> random_location_dist{1, board_dimension_ - 1};
+			// Intentionally avoid the first and last rows and columns, as this can make the first move too difficult
+			std::uniform_int_distribution<unsigned int> random_location_dist{1, board_dimension_ - 2};
 			// For test reproducability it's important that the order of the uses of random_bit_gen_ be preserved
 			const size_type initial_letter_row = random_location_dist(random_bit_gen_);
 			const size_type initial_letter_col = random_location_dist(random_bit_gen_);
