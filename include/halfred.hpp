@@ -659,6 +659,15 @@ namespace halfred {
 		}
 
 		void find_left_parts_core(const AnchorData& anchor, LetterTally remaining_rack, std::string prefix, const Trie* subtrie, std::vector<std::pair<Play, const Trie*>>& left_parts) {
+			Play p;
+			if (anchor.is_row) {
+				p = Play{anchor.row, anchor.col - static_cast<size_type>(prefix.size()), anchor.is_row, prefix, 0, LetterTally{}};
+			}
+			else {
+				p = Play{anchor.row - static_cast<size_type>(prefix.size()), anchor.col, anchor.is_row, prefix, 0, LetterTally{}};
+			}
+			left_parts.push_back(std::make_pair(p, subtrie));
+
 			// If we don't have space to make the prefix any longer
 			if (prefix.size() > anchor.max_size
 				|| (anchor.is_row && anchor.col <= prefix.size())
@@ -683,15 +692,7 @@ namespace halfred {
 				else {
 					--remaining_rack.at(letter_to_index(wild));
 				}
-				Play p;
 				std::string new_prefix = prefix + index_to_letter(rack_i);
-				if (anchor.is_row) {
-					p = Play{anchor.row, anchor.col - static_cast<size_type>(new_prefix.size()), anchor.is_row, new_prefix, 0, LetterTally{}};
-				}
-				else {
-					p = Play{anchor.row - static_cast<size_type>(new_prefix.size()), anchor.col, anchor.is_row, new_prefix, 0, LetterTally{}};
-				}
-				left_parts.push_back(std::make_pair(p, branch));
 				find_left_parts_core(anchor, remaining_rack, new_prefix, branch, left_parts);
 			}
 		}

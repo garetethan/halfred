@@ -18,6 +18,7 @@
 #include <vector>
 
 #include <boost/test/unit_test.hpp>
+#include <boost/test/results_collector.hpp>
 
 #include <halfred.hpp>
 #include <test_helpers.hpp>
@@ -35,8 +36,8 @@ struct SeededGameFixtureFullData;
 // Defined at the bottom of this file
 std::set<std::string> read_valid_words(std::string valid_words_path);
 LetterTally read_letter_scores(std::string letter_scores_path);
-void test_plays_equal(const Play& actual, const Play& expected, bool check_scores = false, bool check_letters_used = false);
-void test_play_vectors_equal(const std::vector<Play>& actual, const std::vector<Play>& expected, bool check_scores = false, bool check_letters_used = false, size_type limit = 4);
+bool test_plays_equal(const Play& actual, const Play& expected, bool check_scores = false, bool check_letters_used = false);
+bool test_play_vectors_equal(const std::vector<Play>& actual, const std::vector<Play>& expected, bool check_scores = false, bool check_letters_used = false, const bool allow_extras = true);
 std::string cross_check_to_string(std::array<bool, letter_space_size> cross_check);
 std::array<bool, letter_space_size> string_to_cross_check(std::string letters);
 std::string cross_checks_board_to_string(const Board<std::array<bool, letter_space_size>>& cross_checks);
@@ -169,19 +170,23 @@ BOOST_FIXTURE_TEST_CASE(test_evaluate_play, SeededGameFixture) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_find_plays_in_line_row_small_data, SeededGameFixture) {
-	// Look in row 8 since that's where the initial letter is "randomly" placed
-	std::vector<Play> expected;
-	expected.emplace_back(2, 6, true, "ace", 6, LetterTally{"AC"});
+	// Look in row 2 since that's where the initial letter is "randomly" placed
+	const std::vector<Play> expected = {
+		Play{2, 6, true, "ace", 6, LetterTally{"AC"}},
+		Play{2, 7, true, "be", 5, LetterTally{"B"}}
+	};
 	const std::vector<Play> actual = find_plays_in_line(2, true);
-	test_play_vectors_equal(actual, expected, true, false);
+	test_play_vectors_equal(actual, expected, true, false, false);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_find_plays_in_line_column_small_data, SeededGameFixture) {
-	// Look in column 2 since that's where the initial letter is "randomly" placed
-	std::vector<Play> expected;
-	expected.emplace_back(0, 8, false, "ace", 6, LetterTally{});
+	// Look in column 8 since that's where the initial letter is "randomly" placed
 	const std::vector<Play> actual = find_plays_in_line(8, false);
-	test_play_vectors_equal(actual, expected, true, false);
+	const std::vector<Play> expected{
+		Play{0, 8, false, "ace", 6, LetterTally{"AC"}},
+		Play{1, 8, false, "be", 5, LetterTally{"B"}}
+	};
+	test_play_vectors_equal(actual, expected, true, false, false);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_choose_hal_play_small_data, SeededGameFixture) {
@@ -364,30 +369,21 @@ BOOST_FIXTURE_TEST_CASE(test_seed_full_data, SeededGameFixtureFullData) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_find_plays_in_line_row_full_data, SeededGameFixtureFullData) {
-	const std::vector<Play> actual_plays = find_plays_in_line(2, true);
+	const std::vector<Play> actual = find_plays_in_line(2, true);
 	// Since this test uses the full data files, there are dozens of move options
 	// I've chosen to check for a few words that will hopefully stick around even if the word filtering policy changes slightly
 	// I've chosen not to validate exact scores here since the letter scores might be changed
-	const std::vector<Play> expected_plays{
+	const std::vector<Play> expected{
 		Play{2, 6, true, "ado", 0, LetterTally{}},
 		Play{2, 5, true, "alto", 0, LetterTally{}},
 		Play{2, 6, true, "bloat", 0, LetterTally{}}
 	};
-	for (const Play& expected : expected_plays) {
-		const auto actual = std::find_if(actual_plays.begin(), actual_plays.end(), [expected](auto p) {return p.word == expected.word;});
-		// Extra parentheses ensure Boost doesn't require actual to be printable
-		// actual is an unprintable iterator type
-		BOOST_REQUIRE_MESSAGE((actual != actual_plays.end()), stringify("Expected to find the word ", expected.word, " playable at (", expected.row, ", ", expected.col, "), but this word wasn't considered playable anywhere in the line."));
-		test_plays_equal(*actual, expected);
-		// We don't know exactly what the scores should be, but at least check they're being set
-		BOOST_TEST(actual->score > 0);
-	}
+	test_play_vectors_equal(actual, expected);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_choose_hal_play_full_data, SeededGameFixtureFullData) {
 	test_plays_equal(choose_hal_play(), Play{2, 8, false, "oddball", 0, LetterTally{}});
 }
-
 
 BOOST_AUTO_TEST_SUITE_END()
 
@@ -401,7 +397,7 @@ std::set<std::string> read_valid_words(std::string valid_words_path) {
 	return valid_words;
 }
 
-LetterTally read_letter_scores(std:: string letter_scores_path) {
+LetterTally read_letter_scores(std::string letter_scores_path) {
 	LetterTally letter_scores;
 	std::ifstream letter_scores_file = defensively_open(letter_scores_path);
 	for (unsigned int& score : letter_scores) {
@@ -412,48 +408,89 @@ LetterTally read_letter_scores(std:: string letter_scores_path) {
 
 // Plays have operator== defined, but this helper allows only relevant members to be checked
 // check_scores and check_letters_used both default to false
-void test_plays_equal(const Play& actual, const Play& expected, bool check_scores, bool check_letters_used) {
-	BOOST_TEST(actual.row == expected.row);
-	BOOST_TEST(actual.col == expected.col);
-	BOOST_TEST(actual.across == expected.across);
-	BOOST_TEST(actual.word == expected.word);
+bool test_plays_equal(const Play& actual, const Play& expected, bool check_scores, bool check_letters_used) {
+	const auto test_id = boost::unit_test::framework::current_test_case().p_id;
+	const auto fails_before = boost::unit_test::results_collector.results(test_id).p_assertions_failed.get();
+
+	std::string message = stringify("\nActual: ", actual.to_string(), "\nExpected: ", expected.to_string(), "\n");
+	bool equal = (
+		actual.row == expected.row
+		&& actual.col == expected.col
+		&& actual.across == expected.across
+		&& actual.word == expected.word
+	);
+	BOOST_TEST(equal, message);
 	if (check_scores) {
-		BOOST_TEST(actual.score == expected.score);
+		BOOST_TEST(actual.score == expected.score, message);
 	}
 	if (check_letters_used) {
 		std::string actual_letters = actual.letters_used.to_string();
 		std::string expected_letters = expected.letters_used.to_string();
-		BOOST_TEST(actual_letters == expected_letters);
+		BOOST_TEST(actual_letters == expected_letters, message);
 	}
+
+	const auto fails_after = boost::unit_test::results_collector.results(test_id).p_assertions_failed.get();
+	return fails_before == fails_after;
 }
 
-// check_scores and check_letters_used both default to false
-// limit defaults to 12
-void test_play_vectors_equal(const std::vector<Play>& actual, const std::vector<Play>& expected, bool check_scores, bool check_letters_used, size_type limit) {
-	BOOST_TEST(actual.size() == expected.size(), stringify("Expected ", expected.size(), " plays, but got ", actual.size(), "."));
-	auto actual_view = std::views::take(actual, limit);
-	auto expected_view = std::views::take(expected, limit);
-	auto actual_it = actual_view.begin();
-	auto expected_it = expected_view.begin();
-	const Play* actual_play;
-	const Play* expected_play;
-	while (actual_it != actual_view.end() || expected_it != expected_view.end()) {
-		if (actual_it == actual_view.end()) {
-			actual_play = &Game::null_play;
+/*
+Runs in quadratic time. Consider making this more efficient if running on large play collections.
+
+Defaults:
+check_scores = false
+check_letters_used = false
+allow_extras = true
+*/
+bool test_play_vectors_equal(const std::vector<Play>& actual, const std::vector<Play>& expected, const bool check_scores, const bool check_letters_used, const bool allow_extras) {
+	const auto test_id = boost::unit_test::framework::current_test_case().p_id;
+	const auto fails_before = boost::unit_test::results_collector.results(test_id).p_assertions_failed.get();
+
+	for (const Play& expected_play : expected) {
+		auto matches = std::ranges::views::filter(actual, [expected_play](auto p) {return p.word == expected_play.word;});
+		// Extra parentheses ensure Boost doesn't require actual to be printable
+		// actual_play is an unprintable iterator type
+		const auto actual_play = std::ranges::find_if(matches, [expected_play, check_scores, check_letters_used](auto p) {
+			return (
+				p.row == expected_play.row
+				&& p.col == expected_play.col
+				&& p.across == expected_play.across
+				&& p.word == expected_play.word
+				&& (!check_scores || p.score == expected_play.score)
+				&& (!check_letters_used || p.letters_used == expected_play.letters_used)
+			);
+		});
+		std::stringstream missing_message;
+		missing_message << "\nMissing expected play of \"" << expected_play.word << "\" at (" << expected_play.row << ", " << expected_play.col << ")";
+		if (check_scores) {
+			missing_message << " (score " << expected_play.score << ")";
 		}
-		else {
-			actual_play = &(*actual_it);
-			++actual_it;
+		if (check_letters_used) {
+			missing_message << " (using " << expected_play.letters_used.to_string() << ")";
 		}
-		if (expected_it == expected_view.end()) {
-			expected_play = &Game::null_play;
+		missing_message << ".";
+		if (!matches.empty()) {
+			missing_message << "Candidates (all plays of the same word):\n";
+			for (const Play& candidate : matches) {
+				missing_message << candidate.to_string() << "\n";
+			}
 		}
-		else {
-			expected_play = &(*expected_it);
-			++expected_it;
+		BOOST_TEST((actual_play != matches.end()), missing_message.str());
+
+		if (!allow_extras && actual.size() > expected.size()) {
+			std::stringstream extra_message;
+			extra_message << "\nGot extra unexpected plays:\n";
+			for (const Play& actual_play : actual) {
+				auto match = std::ranges::find_if(expected, [actual_play](auto p) {return p.word == actual_play.word;});
+				if (match == expected.cend()) {
+					extra_message << actual_play.to_string() << "\n";
+				}
+			}
+			BOOST_TEST(actual.size() == expected.size(), extra_message.str());
 		}
-		test_plays_equal(*actual_play, *expected_play, check_scores, check_letters_used);
 	}
+
+	const auto fails_after = boost::unit_test::results_collector.results(test_id).p_assertions_failed.get();
+	return fails_before == fails_after;
 }
 
 std::string cross_check_to_string(std::array<bool, letter_space_size> cross_check) {
