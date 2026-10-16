@@ -108,10 +108,12 @@ namespace halfred {
 	letter_scores_path = "" (automatically calculate letter scores based on letter frequencies)
 	board_dimension = 16
 	verbose = false
+	seed = 0
+	show_seed = false
 	in = cin
 	out = cout
 	*/
-	int play_game(std::string valid_words_path, std::string letter_scores_path, size_type board_dimension, bool verbose, std::istream& in, std::ostream& out) {
+	int play_game(std::string valid_words_path, std::string letter_scores_path, const size_type board_dimension, const bool verbose, const unsigned int seed, const bool show_seed, std::istream& in, std::ostream& out) {
 		std::ifstream valid_words_file = defensively_open(valid_words_path);
 		std::set<std::string> valid_words{};
 		std::string word;
@@ -125,7 +127,7 @@ namespace halfred {
 		Game game;
 		// If the user chose to not provide letter scores explicitly.
 		if (letter_scores_path.empty()) {
-			game = Game{valid_words, board_dimension, verbose};
+			game = Game{valid_words, board_dimension, verbose, seed};
 		}
 		else {
 			std::ifstream letter_scores_file = defensively_open(letter_scores_path);
@@ -137,10 +139,13 @@ namespace halfred {
 					return 1;
 				}
 			}
-			game = Game{valid_words, letter_scores, board_dimension, verbose};
+			game = Game{valid_words, letter_scores, board_dimension, verbose, seed};
 		}
 
 		out << "Welcome to Halfred! Type \"/exit\" at any time to exit the game. If it's your turn and you can't see any possible moves, you can give up by typing \"_\" (an underscore)." << std::endl;
+		if (show_seed) {
+			out << "Seed: " << game.seed() << std::endl;
+		}
 		out << game.game_state();
 		bool person_playing = true;
 		bool computer_playing = true;

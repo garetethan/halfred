@@ -18,8 +18,10 @@ int main(int argc, char* argv[]) {
 	allowed_opts.add_options()
 		("valid_words_path,w", boost_opts::value<std::string>()->required(), "Path of the text file containing words considered valid. May instead be given as the first positional argument. [required]")
 		("letter_scores_path,l", boost_opts::value<std::string>()->default_value(""), "Path of the text file containing the score to be given for each letter. If unspecified, letter scores will be generated automatically using the list of valid words. [optional]")
-		("board_dimension,n", boost_opts::value<int>()->default_value(16), "The side length the square board should have. [optional]")
+		("board_dimension,n", boost_opts::value<unsigned int>()->default_value(16), "The side length the square board should have. [optional]")
 		("verbose,v", boost_opts::bool_switch(), "Display Hal's (the computer's) available letters as well as your own each turn.")
+		("seed,s", boost_opts::value<unsigned int>()->default_value(0), "Use the given positive integer as the seed instead of generating a random one. [optional]")
+		("show_seed,e", boost_opts::bool_switch(), "At the beginning of the game, show the unsigned integer seed being used.")
 		("help,h", boost_opts::bool_switch(), "Print help message and exit. Overrides all other options.")
 	;
 	boost_opts::variables_map opt_vals;
@@ -30,5 +32,12 @@ int main(int argc, char* argv[]) {
 	}
 	boost_opts::notify(opt_vals);
 
-	return play_game(opt_vals["valid_words_path"].as<std::string>(), opt_vals["letter_scores_path"].as<std::string>(), opt_vals["board_dimension"].as<int>(), opt_vals["verbose"].as<bool>());
+	return play_game(
+		opt_vals["valid_words_path"].as<std::string>(),
+		opt_vals["letter_scores_path"].as<std::string>(),
+		opt_vals["board_dimension"].as<unsigned int>(),
+		opt_vals["verbose"].as<bool>(),
+		opt_vals["seed"].as<unsigned int>(),
+		opt_vals["show_seed"].as<bool>()
+	);
 }

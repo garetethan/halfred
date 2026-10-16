@@ -49,7 +49,7 @@ namespace halfred {
 	std::string stringify(Args... args);
 
 	// Defined in halfred.cpp
-	int play_game(std::string valid_words_path, std::string letter_scores_path = "", const size_type board_dimension = 16, const bool verbose = false, std::istream& in = std::cin, std::ostream& out = std::cout);
+	int play_game(std::string valid_words_path, std::string letter_scores_path = "", const size_type board_dimension = 16, const bool verbose = false, const unsigned int seed = 0, const bool show_seed = false, std::istream& in = std::cin, std::ostream& out = std::cout);
 	std::ifstream defensively_open(const std::string path);
 	std::string get_input(const std::string prompt, std::istream& in = std::cin, std::ostream& out = std::cout);
 	size_type letter_to_index(char le);
@@ -476,6 +476,10 @@ namespace halfred {
 			return hal_score_;
 		}
 
+		unsigned int seed() const noexcept {
+			return seed_;
+		}
+
 		friend void swap(Game& first, Game& second);
 		static std::string clean_word(std::string word);
 
@@ -493,7 +497,6 @@ namespace halfred {
 		Board<int> partial_scores_horizontal_;
 		Board<int> partial_scores_vertical_;
 		std::array<float, letter_space_size + 1> letter_weights_;
-		std::random_device random_dev_;
 		std::mt19937 random_bit_gen_;
 		std::uniform_real_distribution<float> random_letter_dist_;
 
@@ -513,7 +516,11 @@ namespace halfred {
 			// Let blank tiles have a weight equal to the average of all letters
 			float z_weight = letter_weights_.at(letter_space_size - 1);
 			letter_weights_.back() = z_weight + (z_weight / letter_space_size);
-			random_bit_gen_ = std::mt19937{seed_ > 0 ? seed_ : random_dev_()};
+			if (seed_ == 0) {
+				std::random_device random_dev_;
+				seed_ = random_dev_();
+			}
+			random_bit_gen_ = std::mt19937{seed_};
 			random_letter_dist_ = std::uniform_real_distribution<float>{0.f, letter_weights_.back()};
 
 			person_score_ = 0;
