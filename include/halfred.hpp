@@ -596,21 +596,19 @@ namespace halfred {
 			return overall_choice;
 		}
 
-		// Determine and return the best possible valid play in a row
+		// Determine and return the best possible valid play in a row or column
 		// is_row = false for a column
 		std::vector<Play> find_plays_in_line(const size_type line_index, const bool is_row = true) {
 			BoardLine<char>& board_line = is_row ? board_.row(line_index) : board_.col(line_index);
 			std::vector<size_type> anchor_cells;
 			for (size_type cross_i = 0; cross_i < board_dimension_; ++cross_i) {
-				if (board_line.at(cross_i) == empty && (
-					(is_row
-					&& (cross_checks_horizontal_.at(line_index, cross_i) != true_cross_checks
-					|| cross_checks_vertical_.at(line_index, cross_i) != true_cross_checks))
-					||
-					(!is_row
-					&& (cross_checks_horizontal_.at(cross_i, line_index) != true_cross_checks
-					|| cross_checks_vertical_.at(cross_i, line_index) != true_cross_checks))
-				)) {
+				if (
+					board_line.at(cross_i) == empty
+					&& (
+						cross_checks_horizontal_.at(line_index, cross_i, !is_row) != true_cross_checks
+						|| cross_checks_vertical_.at(line_index, cross_i, !is_row) != true_cross_checks
+					)
+				) {
 					anchor_cells.push_back(cross_i);
 				}
 			}
@@ -631,7 +629,14 @@ namespace halfred {
 					for (size_type left_i = *anchor - max_size; left_i < *anchor; ++left_i) {
 						prefix += board_line.at(left_i);
 					}
-					Play p = Play{is_row ? line_index : *anchor - max_size, is_row ? *anchor - max_size : line_index, is_row, prefix, 0, LetterTally{}};
+					Play p = Play{
+						is_row ? line_index : *anchor - max_size,
+						is_row ? *anchor - max_size : line_index,
+						is_row,
+						prefix,
+						0,
+						LetterTally{}
+					};
 					const Trie* subtrie = trie_.subtrie(prefix);
 					if (subtrie != nullptr) {
 						left_parts.push_back(std::make_pair(p, subtrie));
@@ -713,28 +718,17 @@ namespace halfred {
 		}
 
 		void find_right_parts(Play p, const Trie* subtrie, LetterTally remaining_rack, const bool is_row, std::vector<Play>& moves) {
-			char cell;
-			const std::array<bool, letter_space_size>* cross_checks;
-			// Row
-			if (is_row) {
-				if (p.col + p.word.size() >= board_dimension_) {
-					return;
-				}
-				cell = board_.at(p.row, p.col + p.word.size());
-				cross_checks = &cross_checks_vertical_.at(p.row, p.col + p.word.size());
+			const size_type line_index = is_row ? p.row : p.col;
+			const size_type index_in_line = is_row ? p.col : p.row;
+			if (index_in_line + p.word.size() >= board_dimension_) {
+				return;
 			}
-			// Column
-			else {
-				if (p.row + p.word.size() >= board_dimension_) {
-					return;
-				}
-				cell = board_.at(p.row + p.word.size(), p.col);
-				cross_checks = &cross_checks_horizontal_.at(p.row + p.word.size(), p.col);
-			}
+			const char cell = board_.at(line_index, index_in_line + p.word.size(), !is_row);
+			const std::array<bool, letter_space_size>& cross_checks = is_row ? cross_checks_vertical_.at(p.row, p.col + p.word.size()) : cross_checks_horizontal_.at(p.row + p.word.size(), p.col);
 			std::vector<size_type> possible_letter_indexes;
 			if (cell == empty) {
 				for (size_type letter_i = 0; letter_i < letter_space_size; ++letter_i) {
-					if ((remaining_rack.at(letter_i) > 0 || remaining_rack.at(letter_to_index(wild)) > 0) && cross_checks->at(letter_i)) {
+					if ((remaining_rack.at(letter_i) > 0 || remaining_rack.at(letter_to_index(wild)) > 0) && cross_checks.at(letter_i)) {
 						possible_letter_indexes.push_back(letter_i);
 					}
 				}
@@ -759,14 +753,10 @@ namespace halfred {
 							--new_rack.at(letter_to_index(wild));
 						}
 					}
-					if (branch->is_end() && (
-						(is_row
-						&& p.col + new_play.word.size() < board_dimension_
-						&& board_.at(p.row, p.col + new_play.word.size()) == empty)
-						|| (!is_row
-						&& p.row + new_play.word.size() < board_dimension_
-						&& board_.at(p.row + new_play.word.size(), p.col) == empty)
-					)) {
+					if (branch->is_end()
+						&& index_in_line + new_play.word.size() < board_dimension_
+						&& board_.at(line_index, index_in_line + new_play.word.size(), !is_row) == empty
+					) {
 						moves.push_back(new_play);
 					}
 					find_right_parts(new_play, branch, new_rack, is_row, moves);
@@ -899,16 +889,10 @@ namespace halfred {
 			for (size_type i = 0; i < letter_space_size + 1; ++i) {
 				rack.at(i) -= p.letters_used.at(i);
 			}
-			if (p.across) {
-				for (size_type pos = 0; pos < p.word.size(); ++pos) {
-					board_.at(p.row, p.col + pos) = p.word.at(pos);
-				}
-			}
-			// If played vertically
-			else {
-				for (size_type pos = 0; pos < p.word.size(); ++pos) {
-					board_.at(p.row + pos, p.col) = p.word.at(pos);
-				}
+			const size_type line_index = p.across ? p.row : p.col;
+			const size_type index_in_line = p.across ? p.col : p.row;
+			for (size_type pos = 0; pos < p.word.size(); ++pos) {
+				board_.at(line_index, index_in_line + pos, !p.across) = p.word.at(pos);
 			}
 			score += p.score;
 			// Cross checks and partial scores can only be found after the board has been updated
@@ -917,88 +901,64 @@ namespace halfred {
 		}
 
 		void update_cross_checks_and_partial_scores(const Play& p) {
-			// Played horizontally
-			if (p.across) {
-				const BoardLine<char>& play_row = board_.row(p.row);
-				// Cell to the left
-				if (p.col > 0) {
-					update_cross_check_and_partial_score_cells(play_row, p.col - 1, cross_checks_horizontal_.at(p.row, p.col - 1), partial_scores_horizontal_.at(p.row, p.col - 1));
-				}
-				for (size_type col_i = p.col; col_i < p.col + p.word.size(); ++col_i) {
-					const BoardLine<char>& cross_line = board_.col(col_i);
-					// Row above
-					if (p.row > 0) {
-						update_cross_check_and_partial_score_cells(cross_line, p.row - 1, cross_checks_vertical_.at(p.row - 1, col_i), partial_scores_vertical_.at(p.row - 1, col_i));
-					}
-					// Row being played in
-					cross_checks_horizontal_.at(p.row, col_i) = false_cross_checks;
-					cross_checks_vertical_.at(p.row, col_i) = false_cross_checks;
-					// Row below
-					if (p.row < board_dimension_ - 1) {
-						update_cross_check_and_partial_score_cells(cross_line, p.row + 1, cross_checks_vertical_.at(p.row + 1, col_i), partial_scores_vertical_.at(p.row + 1, col_i));
-					}
-				}
-				// Cell to the right
-				const size_type word_end_col = p.col + p.word.size();
-				if (word_end_col < board_dimension_ - 1) {
-					update_cross_check_and_partial_score_cells(play_row, word_end_col, cross_checks_horizontal_.at(p.row, word_end_col), partial_scores_horizontal_.at(p.row, word_end_col));
-				}
-
+			const size_type line_index = p.across ? p.row : p.col;
+			const size_type index_in_line = p.across ? p.col : p.row;
+			Board<std::array<bool, letter_space_size>>& primary_cross_checks = p.across ? cross_checks_vertical_ : cross_checks_horizontal_;
+			Board<std::array<bool, letter_space_size>>& secondary_cross_checks = p.across ? cross_checks_horizontal_ : cross_checks_vertical_;
+			Board<int>& primary_partial_scores = p.across ? partial_scores_vertical_ : partial_scores_horizontal_;
+			Board<int>& secondary_partial_scores = p.across ? partial_scores_horizontal_ : partial_scores_vertical_;
+			// Cell before
+			if (index_in_line > 0) {
+				update_cross_check_and_partial_score_cells(index_in_line - 1, line_index, secondary_cross_checks, secondary_partial_scores, !p.across);
 			}
-			// Played vertically
-			else {
-				const BoardLine<char>& play_col = board_.col(p.col);
-				// Cell above
-				if (p.row > 0) {
-					update_cross_check_and_partial_score_cells(play_col, p.row - 1, cross_checks_vertical_.at(p.row - 1, p.col), partial_scores_vertical_.at(p.row - 1, p.col));
+			for (size_type cross_i = index_in_line; cross_i < index_in_line + p.word.size(); ++cross_i) {
+				// Line before
+				if (line_index > 0) {
+					update_cross_check_and_partial_score_cells(line_index - 1, cross_i, primary_cross_checks, primary_partial_scores, p.across);
 				}
-				for (size_type row_i = p.row; row_i < p.row + p.word.size(); ++row_i) {
-					BoardLine<char>& cross_line = board_.row(row_i);
-					// Column to the left
-					if (p.col > 0) {
-						update_cross_check_and_partial_score_cells(cross_line, p.col - 1, cross_checks_horizontal_.at(row_i, p.col - 1), partial_scores_horizontal_.at(row_i, p.col - 1));
-					}
-					// Column being played in
-					cross_checks_horizontal_.at(row_i, p.col) = false_cross_checks;
-					cross_checks_vertical_.at(row_i, p.col) = false_cross_checks;
-					// Column to the right
-					if (p.col < board_dimension_ - 1) {
-						update_cross_check_and_partial_score_cells(cross_line, p.col + 1, cross_checks_horizontal_.at(row_i, p.col + 1), partial_scores_horizontal_.at(row_i, p.col + 1));
-					}
+				// Line being played in
+				primary_cross_checks.at(line_index, cross_i, !p.across) = false_cross_checks;
+				secondary_cross_checks.at(line_index, cross_i, !p.across) = false_cross_checks;
+				// Line after
+				if (line_index < board_dimension_ - 1) {
+					update_cross_check_and_partial_score_cells(line_index + 1, cross_i, primary_cross_checks, primary_partial_scores, p.across);
 				}
-				// Cell below
-				const size_type word_end_row = p.row + p.word.size();
-				if (word_end_row < board_dimension_ - 1) {
-					update_cross_check_and_partial_score_cells(play_col, word_end_row, cross_checks_vertical_.at(word_end_row, p.col), partial_scores_vertical_.at(word_end_row, p.col));
-				}
+			}
+			// Cell after
+			const size_type word_end_i = index_in_line + p.word.size();
+			if (word_end_i < board_dimension_ - 1) {
+				update_cross_check_and_partial_score_cells(word_end_i, line_index, secondary_cross_checks, secondary_partial_scores, !p.across);
 			}
 		}
 
-		void update_cross_check_and_partial_score_cells(const BoardLine<char>& cross_line, const size_type index_in_cross_line, std::array<bool, letter_space_size>& cross_check_cell, int& partial_score_cell) {
+		void update_cross_check_and_partial_score_cells(const size_type line_index, const size_type index_in_line, Board<std::array<bool, letter_space_size>>& cross_checks, Board<int>& partial_scores, const bool is_row = true) {
+			// The usual !is_row is intentionally inverted to get the line running in the opposite direction
+			BoardLine<char>& cross_line = board_.line(index_in_line, is_row);
 			// Cells that are filled have already had their cross checks set to false and their partial scores set to -1
-			if (cross_line.at(index_in_cross_line) == empty) {
-				size_type cross_word_begin = index_in_cross_line;
-				while (cross_word_begin > 0 && cross_line.at(cross_word_begin - 1) != empty) {
-					--cross_word_begin;
+			if (cross_line.at(line_index) != empty) {
+				return;
+			}
+			size_type cross_word_begin = line_index;
+			while (cross_word_begin > 0 && cross_line.at(cross_word_begin - 1) != empty) {
+				--cross_word_begin;
+			}
+			size_type cross_word_end = line_index + 1;
+			while (cross_word_end < board_dimension_ && cross_line.at(cross_word_end) != empty) {
+				++cross_word_end;
+			}
+			std::string cross_word{};
+			int& partial_score = partial_scores.at(line_index, index_in_line, !is_row);
+			partial_score = 0;
+			for (size_type cross_i = cross_word_begin; cross_i < cross_word_end; ++cross_i) {
+				char letter = cross_line.at(cross_i);
+				cross_word += letter;
+				if (letter != '_') {
+					partial_score += letter_scores_.at(letter_to_index(letter));
 				}
-				size_type cross_word_end = index_in_cross_line + 1;
-				while (cross_word_end < board_dimension_ && cross_line.at(cross_word_end) != empty) {
-					++cross_word_end;
-				}
-				std::string cross_word{};
-				partial_score_cell = 0;
-				for (size_type cross_i = cross_word_begin; cross_i < cross_word_end; ++cross_i) {
-					char letter = cross_line.at(cross_i);
-					cross_word += letter;
-					if (letter != '_') {
-						partial_score_cell += letter_scores_.at(letter_to_index(letter));
-					}
-				}
-
-				for (size_type letter_i = 0; letter_i < letter_space_size; ++letter_i) {
-					cross_word.at(index_in_cross_line - cross_word_begin) = index_to_letter(letter_i);
-					cross_check_cell.at(letter_i) = valid_words_.contains(cross_word);
-				}
+			}
+			for (size_type letter_i = 0; letter_i < letter_space_size; ++letter_i) {
+				cross_word.at(line_index - cross_word_begin) = index_to_letter(letter_i);
+				cross_checks.at(line_index, index_in_line, !is_row).at(letter_i) = trie_.contains(cross_word);
 			}
 		}
 
