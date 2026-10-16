@@ -85,7 +85,7 @@ BOOST_FIXTURE_TEST_CASE(test_random_letter_as_index, GameFixture) {
 }
 
 BOOST_FIXTURE_TEST_CASE(test_draw_letters, GameFixture) {
-	// Braces initialize to all zeros.
+	// Braces initialize to all zeros
 	LetterTally tile_rack{};
 	draw_letters(tile_rack);
 	BOOST_TEST(tile_rack.accumulate() == Game::rack_size);
@@ -121,23 +121,21 @@ struct SeededGameFixture : public GameFixture {
 	}
 };
 
-// These plays are tied for the best possible on the first move, which is taken by Halfred
+// These are possible first moves, each the best in their respective row or column
 /*
   ...|5|6|7|8|9|...
 0 ...|_|_|_|_|_|...
 1 ...|_|_|_|_|_|...
 2 ...|_|A|C|E|_|...
 3 ...|_|_|_|_|_|...
-4 ...|_|_|_|_|_|...
 */
 const Play SeededGameFixture::horizontal_play{2, 6, true, "ace", 6, LetterTally{"AC"}};
 /*
-  ...|6|7|8|9|10|...
-0 ...|_|_|A|_|__|...
-1 ...|_|_|C|_|__|...
-2 ...|_|_|E|_|__|...
-3 ...|_|_|_|_|__|...
-4 ...|_|_|_|_|__|...
+  ...|7|8|9|...
+0 ...|_|A|_|...
+1 ...|_|C|_|...
+2 ...|_|E|_|...
+3 ...|_|_|_|...
 */
 const Play SeededGameFixture::vertical_play{0, 8, false, "ace", 6, LetterTally{"AC"}};
 
@@ -182,7 +180,11 @@ BOOST_FIXTURE_TEST_CASE(test_find_plays_in_line_column_small_data, SeededGameFix
 
 BOOST_FIXTURE_TEST_CASE(test_choose_hal_play_small_data, SeededGameFixture) {
 	const Play best_actual = choose_hal_play();
-	test_plays_equal(best_actual, horizontal_play, true);
+	// There are two places "cab" can be played for the same score
+	// Both form "be" with the "e" already on the board
+	// Allow either
+	BOOST_TEST(best_actual.word == "cab");
+	BOOST_TEST(best_actual.score == 7);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_apply_play, SeededGameFixture) {
@@ -438,7 +440,7 @@ bool test_plays_equal(const Play& actual, const Play& expected, bool check_score
 	);
 	BOOST_TEST(equal, message);
 	if (check_scores) {
-		BOOST_TEST(actual.score == expected.score, message);
+		BOOST_TEST(actual.score == expected.score, "Scores don't match: " + message);
 	}
 	if (check_letters_used) {
 		std::string actual_letters = actual.letters_used.to_string();

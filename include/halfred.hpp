@@ -600,13 +600,21 @@ namespace halfred {
 		// is_row = false for a column
 		std::vector<Play> find_plays_in_line(const size_type line_index, const bool is_row = true) {
 			BoardLine<char>& board_line = is_row ? board_.row(line_index) : board_.col(line_index);
-			const BoardLine<std::array<bool, letter_space_size>>& cross_checks = is_row ? cross_checks_horizontal_.row(line_index) : cross_checks_vertical_.col(line_index);
 			std::vector<size_type> anchor_cells;
 			for (size_type cross_i = 0; cross_i < board_dimension_; ++cross_i) {
-				if (board_line.at(cross_i) == empty && cross_checks.at(cross_i) != true_cross_checks) {
+				if (board_line.at(cross_i) == empty && (
+					(is_row
+					&& (cross_checks_horizontal_.at(line_index, cross_i) != true_cross_checks
+					|| cross_checks_vertical_.at(line_index, cross_i) != true_cross_checks))
+					||
+					(!is_row
+					&& (cross_checks_horizontal_.at(cross_i, line_index) != true_cross_checks
+					|| cross_checks_vertical_.at(cross_i, line_index) != true_cross_checks))
+				)) {
 					anchor_cells.push_back(cross_i);
 				}
 			}
+
 			std::vector<std::pair<Play, const Trie*>> left_parts;
 			for (auto anchor = anchor_cells.cbegin(); anchor != anchor_cells.cend(); ++anchor) {
 				size_type max_size = (anchor == anchor_cells.begin()) ? *anchor : (*anchor - *(anchor - 1)) - 1;
@@ -614,7 +622,7 @@ namespace halfred {
 				if (*anchor > 0 && board_line.at(*anchor - 1) == empty) {
 					const size_type anchor_row = is_row ? line_index : *anchor;
 					const size_type anchor_col = is_row ? *anchor : line_index;
-					const AnchorData anchor_data{anchor_row, anchor_col, max_size, cross_checks, is_row};
+					const AnchorData anchor_data{anchor_row, anchor_col, max_size, is_row};
 					find_left_parts(anchor_data, hal_rack_, left_parts);
 				}
 				// Left part is already entirely on the board
@@ -657,7 +665,6 @@ namespace halfred {
 			const size_type row;
 			const size_type col;
 			const size_type max_size;
-			const BoardLine<std::array<bool, letter_space_size>>& cross_checks{};
 			const bool is_row = true;
 		};
 
@@ -677,7 +684,7 @@ namespace halfred {
 			left_parts.push_back(std::make_pair(p, subtrie));
 
 			// If we don't have space to make the prefix any longer
-			if (prefix.size() > anchor.max_size
+			if (prefix.size() >= anchor.max_size
 				|| (anchor.is_row && anchor.col <= prefix.size())
 				|| (!anchor.is_row && anchor.row <= prefix.size())) {
 				return;
