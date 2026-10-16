@@ -701,6 +701,7 @@ namespace halfred {
 		void find_right_parts(Play p, const Trie* subtrie, LetterTally remaining_rack, const bool is_row, std::vector<Play>& moves) {
 			char cell;
 			const std::array<bool, letter_space_size>* cross_checks;
+			// Row
 			if (is_row) {
 				if (p.col + p.word.size() >= board_dimension_) {
 					return;
@@ -744,8 +745,14 @@ namespace halfred {
 							--new_rack.at(letter_to_index(wild));
 						}
 					}
-					const char next_cell = is_row ? board_.at(new_play.row, new_play.col + new_play.word.size()) : board_.at(new_play.row + new_play.word.size(), new_play.col);
-					if (branch->is_end() && next_cell == empty) {
+					if (branch->is_end() && (
+						(is_row
+						&& p.col + new_play.word.size() < board_dimension_
+						&& board_.at(p.row, p.col + new_play.word.size()) == empty)
+						|| (!is_row
+						&& p.row + new_play.word.size() < board_dimension_
+						&& board_.at(p.row + new_play.word.size(), p.col) == empty)
+					)) {
 						moves.push_back(new_play);
 					}
 					find_right_parts(new_play, branch, new_rack, is_row, moves);

@@ -28,11 +28,6 @@ using namespace halfred;
 // Intentionally avoid naming conflicts with board_dimension inside of fixtures that inherit from Game
 constexpr size_type board_width = 12;
 
-// Defined below
-struct GameFixture;
-struct SeededGameFixture;
-struct SeededGameFixtureFullData;
-
 // Defined at the bottom of this file
 std::set<std::string> read_valid_words(std::string valid_words_path);
 LetterTally read_letter_scores(std::string letter_scores_path);
@@ -52,46 +47,6 @@ const std::string whole_alphabet = cross_check_to_string(Game::true_cross_checks
 
 struct GameFixture : public Game {
 	GameFixture(unsigned int seed = 0) : Game(test_valid_words, test_letter_scores, board_width, false, seed) {}
-};
-
-struct SeededGameFixture : public GameFixture {
-	static constexpr unsigned int seed = 42;
-	static const Play horizontal_play;
-	static const Play vertical_play;
-
-	SeededGameFixture() : GameFixture(seed) {}
-
-	int letter_score_sum(const std::string& letters) const {
-		int score = 0;
-		for (const char& letter : letters) {
-			score += letter_scores_.at(letter_to_index(letter));
-		}
-		return score;
-	}
-};
-
-// These plays are tied for the best possible on the first move, which is taken by Halfred
-/*
-  ...|5|6|7|8|9|...
-0 ...|_|_|_|_|_|...
-1 ...|_|_|_|_|_|...
-2 ...|_|A|C|E|_|...
-3 ...|_|_|_|_|_|...
-4 ...|_|_|_|_|_|...
-*/
-const Play SeededGameFixture::horizontal_play{2, 6, true, "ace", 6, LetterTally{"AC"}};
-/*
-  ...|6|7|8|9|10|...
-0 ...|_|_|A|_|__|...
-1 ...|_|_|C|_|__|...
-2 ...|_|_|E|_|__|...
-3 ...|_|_|_|_|__|...
-4 ...|_|_|_|_|__|...
-*/
-const Play SeededGameFixture::vertical_play{0, 8, false, "ace", 6, LetterTally{"AC"}};
-
-struct SeededGameFixtureFullData : public Game {
-	SeededGameFixtureFullData() : Game(real_valid_words, real_letter_scores, board_width, false, SeededGameFixture::seed) {}
 };
 
 BOOST_AUTO_TEST_SUITE(GameTests)
@@ -149,6 +104,42 @@ BOOST_FIXTURE_TEST_CASE(test_parse_location_bad, GameFixture) {
 	parse_location(actual, std::string{"foo"});
 	BOOST_TEST(actual.row >= board_dimension());
 }
+
+struct SeededGameFixture : public GameFixture {
+	static constexpr unsigned int seed = 42;
+	static const Play horizontal_play;
+	static const Play vertical_play;
+
+	SeededGameFixture() : GameFixture(seed) {}
+
+	int letter_score_sum(const std::string& letters) const {
+		int score = 0;
+		for (const char& letter : letters) {
+			score += letter_scores_.at(letter_to_index(letter));
+		}
+		return score;
+	}
+};
+
+// These plays are tied for the best possible on the first move, which is taken by Halfred
+/*
+  ...|5|6|7|8|9|...
+0 ...|_|_|_|_|_|...
+1 ...|_|_|_|_|_|...
+2 ...|_|A|C|E|_|...
+3 ...|_|_|_|_|_|...
+4 ...|_|_|_|_|_|...
+*/
+const Play SeededGameFixture::horizontal_play{2, 6, true, "ace", 6, LetterTally{"AC"}};
+/*
+  ...|6|7|8|9|10|...
+0 ...|_|_|A|_|__|...
+1 ...|_|_|C|_|__|...
+2 ...|_|_|E|_|__|...
+3 ...|_|_|_|_|__|...
+4 ...|_|_|_|_|__|...
+*/
+const Play SeededGameFixture::vertical_play{0, 8, false, "ace", 6, LetterTally{"AC"}};
 
 // Ensure the seed causes the same game setup every time
 BOOST_FIXTURE_TEST_CASE(test_seed_small_data, SeededGameFixture) {
@@ -358,6 +349,32 @@ BOOST_FIXTURE_TEST_CASE(test_partial_scores_after_vertical_play, SeededGameFixtu
 	BOOST_TEST(partial_scores_horizontal_.at(2, 9) == letter_score_sum("E"));
 	BOOST_TEST(partial_scores_vertical_.at(3, 8) == letter_score_sum("ACE"));
 }
+
+// Seeded so its initial letter is in the second-to-last row and column, the furthest right and down it can be
+struct SeededGameFixtureCorner : public Game {
+	// Intentionally omit the test letter scores to allow for a more flexible rack
+	SeededGameFixtureCorner() : Game(real_valid_words, board_width, false, 235) {}
+	/*
+	   |10|11|12|
+	10 |__|__|__|
+	11 |__|a |__|
+	12 |__|__|__|
+	*/
+};
+
+// Play in the bottom right corner of the board to see if any bounds are exceeded
+BOOST_FIXTURE_TEST_CASE(test_board_boundaries, SeededGameFixtureCorner) {
+	Play actual_best = choose_hal_play();
+	BOOST_TEST(actual_best.score > 0);
+
+	Play corner_play{11, 5, true, "axstone", 0, LetterTally{}};
+	apply_play(corner_play, hal_rack_, hal_score_);
+	BOOST_TEST(board_.at(11, 11) == 'e');
+}
+
+struct SeededGameFixtureFullData : public Game {
+	SeededGameFixtureFullData() : Game(real_valid_words, real_letter_scores, board_width, false, SeededGameFixture::seed) {}
+};
 
 // Ensure the seed causes the same game setup every time
 BOOST_FIXTURE_TEST_CASE(test_seed_full_data, SeededGameFixtureFullData) {
