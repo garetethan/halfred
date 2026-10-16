@@ -4,6 +4,8 @@
 #include <sstream>
 // out_of_range, runtime_error
 #include <stdexcept>
+// as_const
+#include <utility>
 // vector
 #include <vector>
 
@@ -52,60 +54,56 @@ namespace halfred {
 			}
 		}
 
-		T& at(size_type row, size_type col) {
-			return board_.at(row * dimension_ + col);
+		const T& at(const size_type row, const size_type col, const bool transpose = false) const {
+			if (transpose) {
+				return board_.at(col * dimension_ + row);
+			}
+			else {
+				return board_.at(row * dimension_ + col);
+			}
 		}
 
-		const T& at(size_type row, size_type col) const {
-			return board_.at(row * dimension_ + col);
+		T& at(const size_type row, const size_type col, const bool transpose = false) {
+			return const_cast<T&>(std::as_const(*this).at(row, col, transpose));
 		}
 
-		ContiguousIterator<BoardLine<T>> begin() {
-			return rows_begin();
+		ContiguousIterator<const BoardLine<T>> begin(const bool transpose = false) const {
+			if (transpose) {
+				return ContiguousIterator<const BoardLine<T>>{&columns_.at(0), 1};
+			}
+			else {
+				return ContiguousIterator<const BoardLine<T>>{&rows_.at(0), 1};
+			}
 		}
 
-		ContiguousIterator<const BoardLine<T>> begin() const {
-			return rows_begin();
+		ContiguousIterator<BoardLine<T>> begin(const bool transpose = false) {
+			if (transpose) {
+				return ContiguousIterator<BoardLine<T>>{&columns_.at(0), 1};
+			}
+			else {
+				return ContiguousIterator<BoardLine<T>>{&rows_.at(0), 1};
+			}
 		}
 
-		ContiguousIterator<BoardLine<T>> end() {
-			return rows_end();
+		ContiguousIterator<const BoardLine<T>> end(const bool transpose = false) const {
+			return begin(transpose) + dimension_;
 		}
 
-		ContiguousIterator<const BoardLine<T>> end() const {
-			return rows_end();
+		ContiguousIterator<BoardLine<T>> end(const bool transpose = false) {
+			return begin(transpose) + dimension_;
 		}
 
-		ContiguousIterator<BoardLine<T>> rows_begin() {
-			return ContiguousIterator<BoardLine<T>>{&rows_.at(0), 1};
+		const BoardLine<T>& line(const size_type index, const bool transpose = false) const {
+			if (transpose) {
+				return columns_.at(index);
+			}
+			else {
+				return rows_.at(index);
+			}
 		}
 
-		ContiguousIterator<const BoardLine<T>> rows_begin() const {
-			return ContiguousIterator<const BoardLine<T>>{&rows_.at(0), 1};
-		}
-
-		ContiguousIterator<BoardLine<T>> rows_end() {
-			return rows_begin() + dimension_;
-		}
-
-		ContiguousIterator<const BoardLine<T>> rows_end() const {
-			return rows_begin() + dimension_;
-		}
-
-		ContiguousIterator<BoardLine<T>> cols_begin() {
-			return ContiguousIterator<BoardLine<T>>{&columns_.at(0), 1};
-		}
-
-		ContiguousIterator<const BoardLine<T>> cols_begin() const {
-			return ContiguousIterator<const BoardLine<T>>{&columns_.at(0), 1};
-		}
-
-		ContiguousIterator<BoardLine<T>> cols_end() {
-			return cols_begin() + dimension_;
-		}
-
-		ContiguousIterator<const BoardLine<T>> cols_end() const {
-			return cols_begin() + dimension_;
+		BoardLine<T>& line(const size_type index, const bool transpose = false) {
+			return const_cast<BoardLine<T>&>(std::as_const(*this).line(index, transpose));
 		}
 
 		BoardLine<T>& row(size_type index) {
@@ -152,27 +150,27 @@ namespace halfred {
 		// Calling any member functions of a default-constructed board line causes undefined behavior, except for bool
 		BoardLine() : start_(nullptr), size_(0), stride_(0) {}
 
-		T& at(size_type index) {
-			return *(start_ + index * stride_);
-		}
-
 		const T& at(size_type index) const {
 			return *(start_ + index * stride_);
 		}
 
-		ContiguousIterator<T> begin() {
-			return ContiguousIterator<T>{start_, stride_};
+		T& at(size_type index) {
+			return *(start_ + index * stride_);
 		}
 
 		ContiguousIterator<const T> begin() const {
 			return ContiguousIterator<const T>{start_, stride_};
 		}
 
-		ContiguousIterator<T> end() {
-			return begin() + size_;
+		ContiguousIterator<T> begin() {
+			return ContiguousIterator<T>{start_, stride_};
 		}
 
 		ContiguousIterator<const T> end() const {
+			return begin() + size_;
+		}
+
+		ContiguousIterator<T> end() {
 			return begin() + size_;
 		}
 
