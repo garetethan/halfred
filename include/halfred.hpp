@@ -373,7 +373,7 @@ namespace halfred {
 				out << "Halfred does not see any possible plays. How about you?" << std::endl << std::endl;
 				return false;
 			}
-			out << "Halfred played \"" << hal_play.word << "\" at " << hal_play.row + 1 << index_to_letter(hal_play.col) << (hal_play.across ? 'a' : 'd') << " for " << hal_play.score << " points." << std::endl << std::endl;
+			out << "Halfred played \"" << hal_play.word << "\" at " << hal_play.row + 1 << upper(index_to_letter(hal_play.col)) << " " << (hal_play.across ? "across" : "down") << " for " << hal_play.score << " points." << std::endl;
 			apply_play(hal_play, hal_rack_, hal_score_);
 			return true;
 		}
