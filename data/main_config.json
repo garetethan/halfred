@@ -9,8 +9,8 @@
 	"exclude cats": ["English pseudo-acronyms"],
 	"depth": 0,
 	"small ram": true,
-	"# regex": "Allow only terms consisting of letters to remove spaced and hyphenated terms. One-letter words are redundant because of how the game is designed. Two-letter words are selected separately.",
-	"regex": "[a-zA-Z]{3,}",
+	"# regex": "Allow only terms consisting of at least three letters, thereby removing spaced and hyphenated terms. One-letter words are redundant because of how the game is designed. Two-letter words are selected separately. Omit terms that consist of two or more uppercase letters, optionally followed by 's' or 'es', as these are likely initialisms (even if they aren't templated as such).",
+	"regex": "(?![A-Z]{2,}(?:es|s)?$)[a-zA-Z]{3,}",
 	"label lang": "en",
 	"# exclude labels": "The label 'obsolete' is stronger than 'archaic'. There is also 'dated', which is weaker than either.",
 	"exclude labels": [
