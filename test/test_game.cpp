@@ -220,6 +220,9 @@ BOOST_FIXTURE_TEST_CASE(test_cross_checks_initial, SeededGameFixture) {
 	BOOST_TEST(cross_check_to_string(cross_checks_vertical_.at(1, 8)) == "B");
 	// To the left
 	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(2, 7)) == "B");
+	// The 'e' itself
+	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(2, 8)) == "");
+	BOOST_TEST(cross_check_to_string(cross_checks_vertical_.at(2, 8)) == "");
 	// To the right
 	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(2, 9)) == "");
 	// Below
@@ -245,18 +248,27 @@ BOOST_FIXTURE_TEST_CASE(test_cross_checks_after_horizontal_play, SeededGameFixtu
 	BOOST_TEST(cross_check_to_string(cross_checks_vertical_.at(1, 6)) == "L");
 	// To the left of A
 	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(2, 5)) == "LP");
+	// A
+	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(2, 6)) == "");
+	BOOST_TEST(cross_check_to_string(cross_checks_vertical_.at(2, 6)) == "");
 	// Below A
 	BOOST_TEST(cross_check_to_string(cross_checks_vertical_.at(3, 6)) == "");
 
 	// Around C
 	// Above C
 	BOOST_TEST(cross_check_to_string(cross_checks_vertical_.at(1, 7)) == "");
+	// C
+	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(2, 7)) == "");
+	BOOST_TEST(cross_check_to_string(cross_checks_vertical_.at(2, 7)) == "");
 	// Below C
 	BOOST_TEST(cross_check_to_string(cross_checks_vertical_.at(3, 7)) == "");
 
 	// Around E
 	// Above E
 	BOOST_TEST(cross_check_to_string(cross_checks_vertical_.at(1, 8)) == "B");
+	// E
+	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(2, 8)) == "");
+	BOOST_TEST(cross_check_to_string(cross_checks_vertical_.at(2, 8)) == "");
 	// To the right of E
 	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(2, 9)) == "S");
 	// Below E
@@ -281,18 +293,27 @@ BOOST_FIXTURE_TEST_CASE(test_cross_checks_after_vertical_play, SeededGameFixture
 	// Around A
 	// To the left of A
 	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(0, 7)) == "L");
+	// A
+	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(0, 8)) == "");
+	BOOST_TEST(cross_check_to_string(cross_checks_vertical_.at(0, 8)) == "");
 	// To the right of A
 	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(0, 9)) == "");
 
 	// Around C
 	// To the left of C
 	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(1, 7)) == "");
+	// C
+	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(1, 8)) == "");
+	BOOST_TEST(cross_check_to_string(cross_checks_vertical_.at(1, 8)) == "");
 	// To the right of C
 	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(1, 9)) == "");
 
 	// Around E
 	// To the left of E
 	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(2, 7)) == "B");
+	// E
+	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(2, 8)) == "");
+	BOOST_TEST(cross_check_to_string(cross_checks_vertical_.at(2, 8)) == "");
 	// To the right of E
 	BOOST_TEST(cross_check_to_string(cross_checks_horizontal_.at(2, 9)) == "");
 	// Below E
