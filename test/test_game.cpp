@@ -151,11 +151,30 @@ BOOST_FIXTURE_TEST_CASE(test_seed_small_data, SeededGameFixture) {
 	BOOST_TEST(actual_letters == expected_letters);
 }
 
-BOOST_FIXTURE_TEST_CASE(test_evaluate_play, SeededGameFixture) {
+BOOST_FIXTURE_TEST_CASE(test_evaluate_play_good, SeededGameFixture) {
 	Play actual = {2, 6, true, "ace", -1, LetterTally{}};
 	const Play expected = {2, 6, true, "ace", 6, LetterTally{"AC"}};
 	evaluate_play(actual, hal_rack_);
 	test_plays_equal(actual, expected, true, true);
+}
+
+BOOST_FIXTURE_TEST_CASE(test_evaluate_play_letters_unavailable, SeededGameFixture) {
+	// Hal has no L's
+	Play p = {2, 5, true, "lace", -1, LetterTally{}};
+	evaluate_play(p, hal_rack_);
+	BOOST_TEST(p.score < 0);
+}
+
+BOOST_FIXTURE_TEST_CASE(test_evaluate_play_disconnected, SeededGameFixture) {
+	Play p = {4, 0, true, "cab", -1, LetterTally{}};
+	evaluate_play(p, hal_rack_);
+	BOOST_TEST(p.score < 0);
+}
+
+BOOST_FIXTURE_TEST_CASE(test_evaluate_play_none_used, SeededGameFixture) {
+	Play p = {2, 8, true, "e", -1, LetterTally{}};
+	evaluate_play(p, hal_rack_);
+	BOOST_TEST(p.score < 0);
 }
 
 BOOST_FIXTURE_TEST_CASE(test_find_plays_in_line_row_small_data, SeededGameFixture) {
