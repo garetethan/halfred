@@ -78,6 +78,7 @@ oy
 pa
 pi
 po
+qi
 qu
 re
 so
