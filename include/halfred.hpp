@@ -256,6 +256,7 @@ namespace halfred {
 		static constexpr char wild = '*';
 		// This limit must be less than the number of letters in the English alphabet, lest we run out of column indexes when printing the board
 		// 24 was chosen because it's a multiple of 8
+		static constexpr size_type min_board_dimension = 3;
 		static constexpr size_type max_board_dimension = 24;
 		static constexpr std::array<bool, letter_space_size> true_cross_checks = filled_array<letter_space_size>(true);
 		static constexpr std::array<bool, letter_space_size> false_cross_checks = filled_array<letter_space_size>(false);
@@ -506,8 +507,8 @@ namespace halfred {
 		unsigned int hal_score_;
 
 		void init() {
-			if (board_dimension_ < 2 || board_dimension_ > max_board_dimension) {
-				throw std::runtime_error{stringify("Board dimension of ", board_dimension_, " is outside the allowable range of 2 - ", max_board_dimension, ".\n")};
+			if (board_dimension_ < min_board_dimension || board_dimension_ > max_board_dimension) {
+				throw std::runtime_error{stringify("Board dimension of ", board_dimension_, " is outside the allowable range of ", min_board_dimension, " - ", max_board_dimension, ".\n")};
 			}
 			letter_weights_.front() = 1.f / std::max(letter_scores_.front(), 1U);
 			for (size_type i = 1; i < letter_space_size; ++i) {
