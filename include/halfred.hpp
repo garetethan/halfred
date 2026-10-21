@@ -765,112 +765,69 @@ namespace halfred {
 		}
 
 		std::string evaluate_play(Play& p, const LetterTally& rack) {
-			p.score = 0;
+			const size_type line_index = p.across ? p.row : p.col;
+			const size_type index_in_line = p.across ? p.col : p.row;
+			const BoardLine<std::array<bool, letter_space_size>>& cross_checks = p.across ? cross_checks_vertical_.row(line_index) : cross_checks_horizontal_.col(line_index);
+			const BoardLine<int>& partial_scores = p.across ? partial_scores_vertical_.row(line_index) : partial_scores_horizontal_.col(line_index);
 
-			if ((p.across
-				&& ((p.col > 0 && board_.at(p.row, p.col - 1) != empty)
-					|| (p.col + p.word.size() < board_dimension_ && board_.at(p.row, p.col + p.word.size()) != empty)))
-				|| (!p.across
-					&& ((p.row > 0 && board_.at(p.row - 1, p.col) != empty)
-					|| (p.row + p.word.size() < board_dimension_ && board_.at(p.row + p.word.size(), p.col) != empty)))) {
+			if (index_in_line + p.word.size() > board_dimension_) {
+				p.score = -1;
+				return "The word would extend off the board.";
+			}
+			if ((index_in_line > 0 && board_.at(line_index, index_in_line - 1, !p.across) != empty)
+				|| (index_in_line < board_dimension_ && board_.at(line_index, index_in_line + p.word.size(), !p.across) != empty)) {
 				p.score = -1;
 				return "It would be right up against another word in the same dimension, forming a longer possible word with the other word. If this longer word is valid and you want to play it, then enter it.";
 			}
 
-			size_type row_i = p.row;
-			size_type col_i = p.col;
 			bool connects_to_existing = false;
+			p.score = 0;
 			// For every letter in the word being played
-			for (unsigned int word_i = 0; word_i < p.word.size(); ++word_i, p.across ? ++col_i : ++row_i) {
+			for (unsigned int word_i = 0; word_i < p.word.size(); ++word_i) {
 				size_type letter_as_index = letter_to_index(p.word.at(word_i));
-				// try is for std::out_of_range
-				try {
-					// If the cell already has the required letter
-					if (board_.at(row_i, col_i) == p.word.at(word_i)) {
-						p.score += letter_scores_.at(letter_as_index);
-						connects_to_existing = true;
-					}
-					// If the cell is empty, let's see if we can fill it
-					else if (board_.at(row_i, col_i) == empty) {
-						// Do we have the required letter?
-						if (rack.at(letter_as_index) > p.letters_used.at(letter_as_index)) {
-							++p.letters_used.at(letter_as_index);
-							p.score += letter_scores_.at(letter_as_index);
-						}
-						// Can we use a blank tile?
-						else if (rack.back() > p.letters_used.back()) {
-							++p.letters_used.back();
-							p.score += letter_scores_.back();
+				// If the cell already has the required letter
+				if (board_.at(line_index, index_in_line + word_i, !p.across) == p.word.at(word_i)) {
+					connects_to_existing = true;
+					p.score += letter_scores_.at(letter_as_index);
+				}
+				// If the cell is empty, let's see if we can fill it
+				else if (board_.at(line_index, index_in_line + word_i, !p.across) == empty) {
+					// Would this letter form an invalid cross word?
+					const std::array<bool, letter_space_size>& cross_check_cell = cross_checks.at(index_in_line + word_i);
+					if (!cross_check_cell.at(letter_as_index)) {
+						p.score = -1;
+						if (p.across) {
+							return stringify("Playing the letter ", upper(p.word.at(word_i)), " at ", line_index + 1, index_to_letter(index_in_line + word_i), " would form an invalid word vertically.");
 						}
 						else {
-							p.score = -1;
-							return std::string{"You do not have enough "} + upper(p.word.at(word_i)) + "'s to play it there.";
-						}
-
-						// Check for invalid crosswords
-						if (p.across
-							&& ((row_i > 0 && board_.at(row_i - 1, col_i) != empty)
-								|| (row_i < board_dimension_ - 1 && board_.at(row_i + 1, col_i) != empty))) {
-							size_type cross_word_start = row_i;
-							while (cross_word_start > 0 && board_.at(cross_word_start - 1, col_i) != empty) {
-								--cross_word_start;
-							}
-							size_type cross_word_end = row_i + 1;
-							while (cross_word_end < board_dimension_ && board_.at(cross_word_end, col_i) != empty) {
-								++cross_word_end;
-							}
-							std::string cross_word{};
-							for (size_type cross_i = cross_word_start; cross_i < cross_word_end; ++cross_i) {
-								cross_word += board_.at(cross_i, col_i);
-							}
-							cross_word.at(row_i - cross_word_start) = p.word.at(word_i);
-							if (valid_words_.contains(cross_word)) {
-								for (const char& ch : cross_word) {
-									p.score += letter_scores_.at(letter_to_index(ch));
-								}
-							}
-							else {
-								p.score = -1;
-								return std::string{"Doing so would simultaneously spell the invalid word \""} + cross_word + "\".";
-							}
-							connects_to_existing = true;
-						}
-						// The word is spelled downwards
-						else if (!p.across
-							&& ((col_i > 0 && board_.at(row_i, col_i - 1) != empty)
-								|| (col_i < board_dimension_ - 1 && board_.at(row_i, col_i + 1) != empty))) {
-							size_type cross_word_start = col_i;
-							while (cross_word_start > 0 && board_.at(row_i, cross_word_start - 1) != empty) {
-								--cross_word_start;
-							}
-							size_type cross_word_end = col_i + 1;
-							while (cross_word_end < board_dimension_ && board_.at(row_i, cross_word_end) != empty) {
-								++cross_word_end;
-							}
-							std::string cross_word(board_.row(row_i).begin() + cross_word_start, board_.row(row_i).begin() + cross_word_end);
-							cross_word.at(col_i - cross_word_start) = p.word.at(word_i);
-							if (valid_words_.contains(cross_word)) {
-								for (const char& ch : cross_word) {
-									p.score += letter_scores_.at(letter_to_index(ch));
-								}
-							}
-							else {
-								p.score = -1;
-								return std::string{"Doing so would simultaneously spell the invalid word \""} + cross_word + "\".";
-							}
-							connects_to_existing = true;
+							return stringify("Playing the letter ", upper(p.word.at(word_i)), " at ", index_in_line + word_i + 1, index_to_letter(line_index), " would form an invalid word horizontally.");
 						}
 					}
-					// The cell is already filled with a conflicting letter
+					else if (cross_check_cell != true_cross_checks) {
+						connects_to_existing = true;
+					}
+
+					// Do we have the required letter?
+					if (rack.at(letter_as_index) > p.letters_used.at(letter_as_index)) {
+						++p.letters_used.at(letter_as_index);
+						p.score += letter_scores_.at(letter_as_index);
+					}
+					// Can we use a blank tile?
+					else if (rack.back() > p.letters_used.back()) {
+						++p.letters_used.back();
+						p.score += letter_scores_.back();
+					}
 					else {
 						p.score = -1;
-						return std::string{"The board already has "} + upper(board_.at(row_i, col_i)) + " where you want to put " + upper(p.word.at(word_i)) + ".";
+						return stringify("You do not have enough ", upper(p.word.at(word_i)), "'s to play it there.");
 					}
 				}
-				catch (std::out_of_range) {
+				// The cell is already filled with a conflicting letter
+				else {
 					p.score = -1;
-					return "Some part of the word would be beyond the edges of the board.";
+					return stringify("The board already has ", upper(board_.at(line_index, index_in_line + word_i, !p.across)), " where you want to put ", upper(p.word.at(word_i)), ".");
 				}
+				p.score += partial_scores.at(index_in_line + word_i);
 			}
 			if (std::ranges::none_of(p.letters_used, [](auto k){return k > 0;})) {
 				p.score = -1;
