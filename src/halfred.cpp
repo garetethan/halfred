@@ -1,3 +1,5 @@
+// array
+#include <array>
 // isupper, tolower, toupper
 #include <cctype>
 // ifstream
@@ -114,6 +116,18 @@ namespace halfred {
 	out = cout
 	*/
 	int play_game(std::string valid_words_path, std::string letter_scores_path, const size_type board_dimension, const bool verbose, const unsigned int seed, const bool show_seed, std::istream& in, std::ostream& out) {
+		const std::array ascii_banner{
+		"██╗  ██╗ █████╗ ██╗     ███████╗██████╗ ███████╗██████╗ ",
+		"██║  ██║██╔══██╗██║     ██╔════╝██╔══██╗██╔════╝██╔══██╗",
+		"███████║███████║██║     █████╗  ██████╔╝█████╗  ██║  ██║",
+		"██╔══██║██╔══██║██║     ██╔══╝  ██╔══██╗██╔══╝  ██║  ██║",
+		"██║  ██║██║  ██║███████╗██║     ██║  ██║███████╗██████╔╝",
+		"╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝  ╚═╝╚══════╝╚═════╝ ",
+		""
+		};
+		for (const std::string& line : ascii_banner) {
+			out << line << "\n";
+		}
 		std::ifstream valid_words_file = defensively_open(valid_words_path);
 		std::set<std::string> valid_words{};
 		std::string word;
