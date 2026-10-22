@@ -785,7 +785,7 @@ namespace halfred {
 				return "The word would extend off the board.";
 			}
 			if ((index_in_line > 0 && board_.at(line_index, index_in_line - 1, !p.across) != empty)
-				|| (index_in_line < board_dimension_ && board_.at(line_index, index_in_line + p.word.size(), !p.across) != empty)) {
+				|| (index_in_line + p.word.size() < board_dimension_ && board_.at(line_index, index_in_line + p.word.size(), !p.across) != empty)) {
 				p.score = -1;
 				return "It would be right up against another word in the same dimension, forming a longer possible word with the other word. If this longer word is valid and you want to play it, then enter it.";
 			}
