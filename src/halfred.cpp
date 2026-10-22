@@ -135,7 +135,7 @@ namespace halfred {
 			for (unsigned int& score : letter_scores) {
 				letter_scores_file >> score;
 				if (!letter_scores_file) {
-					out << "Error: " << letter_scores_path << " contains fewer than " << letter_space_size << " letter scores." << std::endl;
+					out << "Error: " << letter_scores_path << " contains fewer than " << letter_space_size + 1 << " letter scores (one for each letter, and one at the end for blank tiles)." << std::endl;
 					return 1;
 				}
 			}
@@ -167,7 +167,7 @@ namespace halfred {
 			out << "It's a tie." << std::endl;
 		}
 		else {
-			out << "You have been beaten by Halfred." << std::endl;
+			out << "Halfred wins again!" << std::endl;
 		}
 		return 0;
 	}
