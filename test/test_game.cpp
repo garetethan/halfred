@@ -209,17 +209,12 @@ BOOST_FIXTURE_TEST_CASE(test_choose_hal_play_small_data, SeededGameFixture) {
 BOOST_FIXTURE_TEST_CASE(test_apply_play, SeededGameFixture) {
 	// Halfred's rack has AAAABCCQ
 	// Halfred's score is 0
-	constexpr unsigned int expected_score = 6;
 	apply_play(horizontal_play, hal_rack_, hal_score_);
 	BOOST_TEST(board_.at(2, 6) == 'a');
 	BOOST_TEST(board_.at(2, 7) == 'c');
 	BOOST_TEST(board_.at(2, 8) == 'e');
-	BOOST_TEST(hal_score_ == expected_score);
-	BOOST_TEST(hal_rack_.at(letter_to_index('A')) >= 3);
-	BOOST_TEST(hal_rack_.at(letter_to_index('B')) >= 1);
-	BOOST_TEST(hal_rack_.at(letter_to_index('C')) >= 1);
-	BOOST_TEST(hal_rack_.at(letter_to_index('Q')) >= 1);
-	BOOST_TEST(std::accumulate(hal_rack_.begin(), hal_rack_.end(), 0) == Game::rack_size);
+	BOOST_TEST(hal_score_ == 6);
+	BOOST_TEST(hal_rack_.to_string() == "AAAABCFQ");
 }
 
 // Ensure cross checks are appropriately updated after the "initial" random letter is placed

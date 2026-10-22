@@ -69,9 +69,7 @@ namespace halfred {
 
 	// I've considered using a smaller type instead of int, but Game uses a LetterTally to count up all letters in all valid words
 	// So for long word lists a single count could be in the high hundreds of thousands or low millions
-	class LetterTally : public std::array<unsigned int, letter_space_size + 1> {
-		public:
-
+	struct LetterTally : public std::array<unsigned int, letter_space_size + 1> {
 		// Ensure the array is value-initialized, so that it gets zeroed out
 		LetterTally() : array() {}
 
@@ -79,6 +77,14 @@ namespace halfred {
 			for (const char& letter : letters) {
 				++at(letter_to_index(letter));
 			}
+		}
+
+		LetterTally operator+(const LetterTally& other) const {
+			LetterTally sum{};
+			for (size_type i = 0; i < size(); ++i) {
+				sum.at(i) = this->at(i) + other.at(i);
+			}
+			return sum;
 		}
 
 		LetterTally operator-(const LetterTally& other) const {
@@ -254,6 +260,7 @@ namespace halfred {
 		static constexpr unsigned int rack_size = 8;
 		static constexpr char empty = '_';
 		static constexpr char wild = '*';
+		static constexpr char wild_as_index = letter_space_size;
 		// This limit must be less than the number of letters in the English alphabet, lest we run out of column indexes when printing the board
 		// 24 was chosen because it's a multiple of 8
 		static constexpr size_type min_board_dimension = 3;
@@ -682,10 +689,10 @@ namespace halfred {
 		void find_left_parts_core(const AnchorData& anchor, LetterTally remaining_rack, std::string prefix, const Trie* subtrie, std::vector<std::pair<Play, const Trie*>>& left_parts) {
 			Play p;
 			if (anchor.is_row) {
-				p = Play{anchor.row, anchor.col - static_cast<size_type>(prefix.size()), anchor.is_row, prefix, 0, LetterTally{}};
+				p = Play{anchor.row, anchor.col - static_cast<size_type>(prefix.size()), anchor.is_row, prefix, 0, LetterTally{prefix}};
 			}
 			else {
-				p = Play{anchor.row - static_cast<size_type>(prefix.size()), anchor.col, anchor.is_row, prefix, 0, LetterTally{}};
+				p = Play{anchor.row - static_cast<size_type>(prefix.size()), anchor.col, anchor.is_row, prefix, 0, LetterTally{prefix}};
 			}
 			left_parts.push_back(std::make_pair(p, subtrie));
 
@@ -697,7 +704,7 @@ namespace halfred {
 			}
 			for (size_type rack_i = 0; rack_i < letter_space_size; ++rack_i) {
 				// If we don't have any more of this letter to play
-				if (remaining_rack.at(rack_i) <= 0 && remaining_rack.at(letter_to_index(wild)) <= 0) {
+				if (remaining_rack.at(rack_i) <= 0 && remaining_rack.at(wild_as_index) <= 0) {
 					continue;
 				}
 				const Trie* branch = subtrie->get(rack_i);
@@ -711,7 +718,7 @@ namespace halfred {
 				}
 				// Use a wild
 				else {
-					--remaining_rack.at(letter_to_index(wild));
+					--remaining_rack.at(wild_as_index);
 				}
 				std::string new_prefix = prefix + index_to_letter(rack_i);
 				find_left_parts_core(anchor, remaining_rack, new_prefix, branch, left_parts);
@@ -729,7 +736,7 @@ namespace halfred {
 			std::vector<size_type> possible_letter_indexes;
 			if (cell == empty) {
 				for (size_type letter_i = 0; letter_i < letter_space_size; ++letter_i) {
-					if ((remaining_rack.at(letter_i) > 0 || remaining_rack.at(letter_to_index(wild)) > 0) && cross_checks.at(letter_i)) {
+					if ((remaining_rack.at(letter_i) > 0 || remaining_rack.at(wild_as_index) > 0) && cross_checks.at(letter_i)) {
 						possible_letter_indexes.push_back(letter_i);
 					}
 				}
@@ -748,10 +755,12 @@ namespace halfred {
 					if (index_to_letter(letter_i) != cell) {
 						if (new_rack.at(letter_i) > 0) {
 							--new_rack.at(letter_i);
+							++new_play.letters_used.at(letter_i);
 						}
-						// Use a wild
-						else if (new_rack.at(letter_to_index(wild)) > 0) {
-							--new_rack.at(letter_to_index(wild));
+						// Use a blank AKA wild
+						else if (new_rack.at(wild_as_index) > 0) {
+							--new_rack.at(wild_as_index);
+							++new_play.letters_used.at(wild_as_index);
 						}
 					}
 					if (branch->is_end()
