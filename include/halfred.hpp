@@ -1,7 +1,9 @@
-// max, ranges::any_of, ranges::count_if, ranges::max_element, ranges::none_of, ranges::transform, ranges::upper_bound
+// max, ranges::any_of, ranges::count_if, ranges::max_element, ranges::none_of, ranges::sort, ranges::transform, ranges::upper_bound
 #include <algorithm>
 // array
 #include <array>
+// floor
+#include <cmath>
 // ifstream
 #include <fstream>
 // identity
@@ -49,7 +51,7 @@ namespace halfred {
 	std::string stringify(Args... args);
 
 	// Defined in halfred.cpp
-	int play_game(std::string valid_words_path, std::string letter_scores_path = "", const size_type board_dimension = 16, const bool verbose = false, const unsigned int seed = 0, const bool show_seed = false, std::istream& in = std::cin, std::ostream& out = std::cout);
+	int play_game(std::string valid_words_path, std::string letter_scores_path = "", const size_type board_dimension = 16, const float difficulty = 1.0, const bool verbose = false, const unsigned int seed = 0, const bool show_seed = false, std::istream& in = std::cin, std::ostream& out = std::cout);
 	std::ifstream defensively_open(const std::string path);
 	std::string get_input(const std::string prompt, std::istream& in = std::cin, std::ostream& out = std::cout);
 	size_type letter_to_index(char le);
@@ -275,11 +277,12 @@ namespace halfred {
 		// Attempting to use a default initialized Game causes undefined behaviour
 		Game() : board_dimension_(0), verbose_(false), seed_(0) {}
 
-		Game(std::set<std::string> valid_words, LetterTally letter_scores, const size_type board_dimension, const bool verbose = false, const unsigned int seed = 0) :
+		Game(std::set<std::string> valid_words, LetterTally letter_scores, const size_type board_dimension, const float difficulty = 1.0, const bool verbose = false, const unsigned int seed = 0) :
 				valid_words_(valid_words),
 				letter_scores_(letter_scores),
 				board_dimension_(board_dimension),
 				board_(board_dimension, empty),
+				difficulty_(difficulty),
 				trie_(valid_words.begin(), valid_words.end()),
 				cross_checks_horizontal_(board_dimension, true_cross_checks),
 				cross_checks_vertical_(board_dimension, true_cross_checks),
@@ -290,10 +293,11 @@ namespace halfred {
 			init();
 		}
 
-		Game(std::set<std::string> valid_words, const size_type board_dimension, const bool verbose = false, const unsigned int seed = 0) :
+		Game(std::set<std::string> valid_words, const size_type board_dimension, const float difficulty = 1.0, const bool verbose = false, const unsigned int seed = 0) :
 				valid_words_(valid_words),
 				board_dimension_(board_dimension),
 				board_(board_dimension, empty),
+				difficulty_(difficulty),
 				trie_(valid_words.begin(), valid_words.end()),
 				cross_checks_horizontal_(board_dimension, true_cross_checks),
 				cross_checks_vertical_(board_dimension, true_cross_checks),
@@ -328,6 +332,7 @@ namespace halfred {
 			valid_words_ = other.valid_words_;
 			letter_scores_ = other.letter_scores_;
 			board_dimension_ = other.board_dimension_;
+			difficulty_ = other.difficulty_;
 			verbose_ = other.verbose_;
 			board_ = other.board_;
 			letter_weights_ = other.letter_weights_;
@@ -495,6 +500,7 @@ namespace halfred {
 		std::set<std::string> valid_words_;
 		LetterTally letter_scores_;
 		size_type board_dimension_;
+		float difficulty_ = 1.0;
 		bool verbose_;
 		unsigned int seed_;
 
@@ -584,24 +590,24 @@ namespace halfred {
 
 		// Find the best valid play anywhere on the board
 		Play choose_hal_play() {
-			Play overall_choice = null_play;
+			std::vector<Play> options;
 			std::vector<Play> line_options;
-			Play line_choice;
-			for (size_type i = 0; i < board_dimension_; ++i) {
-				// Best in row
-				line_options = find_plays_in_line(i, true);
-				if (!line_options.empty()) {
-					line_choice = *std::ranges::max_element(line_options, Play::compare_by_score);
-					overall_choice = std::max(overall_choice, line_choice, Play::compare_by_score);
-				}
-				// Best in col
-				line_options = find_plays_in_line(i, false);
-				if (!line_options.empty()) {
-					line_choice = *std::ranges::max_element(line_options, Play::compare_by_score);
-					overall_choice = std::max(overall_choice, line_choice, Play::compare_by_score);
-				}
+			// Find horizontal plays
+			for (size_type row_i = 0; row_i < board_dimension_; ++row_i) {
+				line_options = find_plays_in_line(row_i, true);
+				options.insert(options.end(), line_options.begin(), line_options.end());
 			}
-			return overall_choice;
+			// Find vertical plays
+			for (size_type col_i = 0; col_i < board_dimension_; ++col_i) {
+				line_options = find_plays_in_line(col_i, false);
+				options.insert(options.end(), line_options.begin(), line_options.end());
+			}
+			if (options.empty()) {
+				return null_play;
+			}
+			std::ranges::sort(options, Play::compare_by_score);
+			const size_type choice_i = std::floor((options.size() - 1) * difficulty_);
+			return options.at(choice_i);
 		}
 
 		// Determine and return the best possible valid play in a row or column

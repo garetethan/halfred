@@ -76,6 +76,7 @@ namespace halfred {
 		std::swap(first.valid_words_, second.valid_words_);
 		std::swap(first.letter_scores_, second.letter_scores_);
 		std::swap(first.board_dimension_, second.board_dimension_);
+		std::swap(first.difficulty_, second.difficulty_);
 		std::swap(first.verbose_, second.verbose_);
 		std::swap(first.board_, second.board_);
 		std::swap(first.letter_weights_, second.letter_weights_);
@@ -109,13 +110,14 @@ namespace halfred {
 	Defaults:
 	letter_scores_path = "" (automatically calculate letter scores based on letter frequencies)
 	board_dimension = 16
+	difficulty = 1.0
 	verbose = false
 	seed = 0
 	show_seed = false
 	in = cin
 	out = cout
 	*/
-	int play_game(std::string valid_words_path, std::string letter_scores_path, const size_type board_dimension, const bool verbose, const unsigned int seed, const bool show_seed, std::istream& in, std::ostream& out) {
+	int play_game(std::string valid_words_path, std::string letter_scores_path, const size_type board_dimension, const float difficulty, const bool verbose, const unsigned int seed, const bool show_seed, std::istream& in, std::ostream& out) {
 		const std::array ascii_banner{
 		"██╗  ██╗ █████╗ ██╗     ███████╗██████╗ ███████╗██████╗ ",
 		"██║  ██║██╔══██╗██║     ██╔════╝██╔══██╗██╔════╝██╔══██╗",
@@ -141,7 +143,7 @@ namespace halfred {
 		Game game;
 		// If the user chose to not provide letter scores explicitly.
 		if (letter_scores_path.empty()) {
-			game = Game{valid_words, board_dimension, verbose, seed};
+			game = Game{valid_words, board_dimension, difficulty, verbose, seed};
 		}
 		else {
 			std::ifstream letter_scores_file = defensively_open(letter_scores_path);
@@ -153,7 +155,7 @@ namespace halfred {
 					return 1;
 				}
 			}
-			game = Game{valid_words, letter_scores, board_dimension, verbose, seed};
+			game = Game{valid_words, letter_scores, board_dimension, difficulty, verbose, seed};
 		}
 
 		out << "Welcome to Halfred! Type \"/exit\" at any time to exit the game. If it's your turn and you can't see any possible moves, you can give up by typing \"_\" (an underscore)." << std::endl;

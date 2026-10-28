@@ -46,7 +46,7 @@ const LetterTally real_letter_scores = read_letter_scores("../data/letter_scores
 const std::string whole_alphabet = cross_check_to_string(Game::true_cross_checks);
 
 struct GameFixture : public Game {
-	GameFixture(unsigned int seed = 0) : Game(test_valid_words, test_letter_scores, board_width, false, seed) {}
+	GameFixture(unsigned int seed = 0) : Game(test_valid_words, test_letter_scores, board_width, 1.0, false, seed) {}
 };
 
 BOOST_AUTO_TEST_SUITE(GameTests)
@@ -390,7 +390,7 @@ BOOST_FIXTURE_TEST_CASE(test_partial_scores_after_vertical_play, SeededGameFixtu
 // Seeded so its initial letter is in the second-to-last row and column, the furthest right and down it can be
 struct SeededGameFixtureCorner : public Game {
 	// Intentionally omit the test letter scores to allow for a more flexible rack
-	SeededGameFixtureCorner() : Game(real_valid_words, board_width, false, 235) {}
+	SeededGameFixtureCorner() : Game(real_valid_words, board_width, 1.0, false, 235) {}
 	/*
 	   |10|11|12|
 	10 |__|__|__|
@@ -410,7 +410,7 @@ BOOST_FIXTURE_TEST_CASE(test_board_boundaries, SeededGameFixtureCorner) {
 }
 
 struct SeededGameFixtureFullData : public Game {
-	SeededGameFixtureFullData() : Game(real_valid_words, real_letter_scores, board_width, false, SeededGameFixture::seed) {}
+	SeededGameFixtureFullData() : Game(real_valid_words, real_letter_scores, board_width, 1.0, false, SeededGameFixture::seed) {}
 };
 
 // Ensure the seed causes the same game setup every time
