@@ -661,7 +661,7 @@ namespace halfred {
 
 			std::vector<Play> moves;
 			for (std::pair<Play, const Trie*> left_part : left_parts) {
-				LetterTally remaining_rack = hal_rack_ - LetterTally{left_part.first.word};
+				LetterTally remaining_rack = hal_rack_ - left_part.first.letters_used;
 				find_right_parts(left_part.first, left_part.second, remaining_rack, is_row, moves);
 			}
 
